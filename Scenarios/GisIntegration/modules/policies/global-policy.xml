@@ -1,17 +1,10 @@
 <policies>
-    <inbound>
-        <base />
-    </inbound>
-    <backend>
-        <base />
-    </backend>
+    <inbound />
+    <backend />
     <outbound>
         <set-header name="X-Powered-By" exists-action="delete" />
         <set-header name="X-AspNet-Version" exists-action="delete" />
         <set-header name="Server" exists-action="delete" />
-        <base />
     </outbound>
-    <on-error>
-        <base />
-    </on-error>
+    <on-error />
 </policies>
