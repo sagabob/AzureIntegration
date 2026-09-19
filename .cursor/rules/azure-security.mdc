@@ -12,6 +12,8 @@ This repo is a **practice ground for a secure company**. Prefer the work pattern
 - GitHub Actions authenticates with **OIDC only**. Never create or store `AZURE_CLIENT_SECRET`.
 - Scope federated credentials to a GitHub **Environment**, not a person.
 - Deploy from Actions only. No local “deploy Azure resources” scripts.
+- Pipeline shape is **lint → what-if (plan) → apply**. Never skip plan. Never plan and apply in the same job.
+- Put **required reviewers** on the GitHub Environment so Apply waits until someone reads the what-if log.
 - Pipeline identity: Contributor + User Access Administrator only if it must create RGs and assign RBAC. Prefer Bicep role assignments over ad-hoc `az`.
 - Give the pipeline Key Vault **Officer** only if CI must **write** secrets.
 

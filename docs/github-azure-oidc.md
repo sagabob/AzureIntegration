@@ -16,7 +16,7 @@ az role assignment create --assignee $APP_ID --role 'User Access Administrator' 
 ```
 
 4. **Push this repo to GitHub** (`main`) so the workflow file is on the remote.
-5. GitHub repo **Settings → Environments → New environment** → name it exactly **`demo`**.
+5. GitHub repo **Settings → Environments → New environment** → name it exactly **`demo`**. Add **Required reviewers** so Apply does not start until someone reads the what-if.
 6. On that **`demo`** environment, set these as **variables** (no hardcoded defaults in the workflow):
 
 | Name | Typical value |
@@ -224,7 +224,7 @@ Portal alternative: App registration → **Certificates & secrets → Federated 
 
 1. Repo **Settings → Environments → New environment**.
 2. Name it **`demo`** (must match `environment: demo` in the workflow).
-3. Optional: required reviewers; restrict deployments to branch `main`.
+3. **Required reviewers** (company path): add yourself or a teammate. The workflow uses this environment for **What-if (plan)** and **Apply**, so each of those jobs waits for approval. Read the what-if log, then approve Apply — or reject it. Also restrict deployments to branch `main` if you use branch protection.
 4. On that environment (or **Settings → Secrets and variables → Actions → Variables**), add:
 
 | Variable | Required | Purpose |
@@ -246,13 +246,13 @@ permissions:
   contents: read    # checkout the repo
 ```
 
-That is already set on the deploy job. `id-token: write` does not let the job change GitHub; it only allows requesting the OIDC token.
+That is already set on the **What-if (plan)** and **Apply** jobs. `id-token: write` does not let the job change GitHub; it only allows requesting the OIDC token.
 
 ## 5. Run and verify
 
 **Actions → Deploy GisIntegration → Run workflow**.
 
-Expected path: validate required variables → lint → (optional what-if) → create/update the resource group from `AZURE_RESOURCE_GROUP` → deploy Key Vault + APIM. Missing configuration fails the first job; lint and deploy do not start. Consumption APIM often takes several minutes.
+Expected path: **lint → what-if (plan) → apply**. Plan always runs; there is no skip. Missing Environment variables fail at the start of plan (before apply). If Environment **`demo`** has required reviewers, approve plan, read the what-if, then approve apply. Consumption APIM often takes several minutes.
 
 Confirm Azure login as the app:
 

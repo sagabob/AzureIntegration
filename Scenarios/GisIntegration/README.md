@@ -61,7 +61,8 @@ Full account setup: **[Connect GitHub Actions to Azure (OIDC)](../../docs/github
 Workflow: [`.github/workflows/gisintegration-deploy.yml`](../../.github/workflows/gisintegration-deploy.yml).
 
 - Manual only: **Actions → Deploy GisIntegration → Run workflow**
-- Order: **validate variables → lint → (optional what-if) → create RG → deploy**. Missing variables fail before Azure login.
+- Order: **lint → what-if (plan) → apply**. Plan always runs; there is no skip. Apply starts only after plan succeeds.
+- Company control: on Environment **`demo`**, add **Required reviewers**. GitHub then waits before **What-if** and again before **Apply**, so you can read the plan log and approve (or reject) the apply. Without reviewers, Apply starts as soon as plan succeeds.
 
 ## Demo-only (do not copy to work as-is)
 

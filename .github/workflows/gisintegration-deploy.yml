@@ -1,12 +1,10 @@
 name: Deploy GisIntegration
 
+# Company path: lint → plan (what-if) → apply. No skip-plan.
+# Add required reviewers on Environment "demo" so Apply waits until someone reads the plan.
+
 on:
   workflow_dispatch:
-    inputs:
-      skip_what_if:
-        description: Skip what-if and deploy immediately
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -21,10 +19,27 @@ env:
   DEPLOYMENT_NAME: gisint-demo
 
 jobs:
-  validate:
-    name: Validate configuration
+  lint:
+    name: Lint Bicep
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint
+        run: |
+          az bicep install
+          az bicep lint --file "$BICEP_FILE"
+
+  plan:
+    name: What-if (plan)
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: demo
+    permissions:
+      contents: read
+      id-token: write
     env:
       RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       LOCATION: ${{ vars.AZURE_LOCATION }}
@@ -45,26 +60,37 @@ jobs:
             fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo "::error::Stop. Set the missing values before lint or deploy."
+            echo "::error::Stop. Set the missing values before plan or apply."
             exit 1
           fi
 
-  lint:
-    name: Lint Bicep
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Lint
-        run: |
-          az bicep install
-          az bicep lint --file "$BICEP_FILE"
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
-  deploy:
-    name: Deploy demo
-    needs: [validate, lint]
+      - name: Create resource group
+        run: |
+          az group create --name "$RESOURCE_GROUP" --location "$LOCATION" --output none
+          az bicep install
+          echo "Resource group: $RESOURCE_GROUP"
+
+      - name: What-if
+        run: |
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file "$BICEP_FILE" \
+            --parameters "$BICEP_PARAMS" \
+            --parameters "publisherEmail=$PUBLISHER_EMAIL"
+
+  apply:
+    name: Apply
+    needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: demo
@@ -88,21 +114,6 @@ jobs:
           client-id: ${{ env.AZURE_CLIENT_ID }}
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Create resource group
-        run: |
-          az group create --name "$RESOURCE_GROUP" --location "$LOCATION" --output none
-          az bicep install
-          echo "Resource group: $RESOURCE_GROUP"
-
-      - name: What-if
-        if: ${{ inputs.skip_what_if != true }}
-        run: |
-          az deployment group what-if \
-            --resource-group "$RESOURCE_GROUP" \
-            --template-file "$BICEP_FILE" \
-            --parameters "$BICEP_PARAMS" \
-            --parameters "publisherEmail=$PUBLISHER_EMAIL"
 
       - name: Deploy
         run: |
