@@ -2,7 +2,7 @@
   Purpose: API Management instance (Consumption demo SKU by default).
   Security:
     - System-assigned identity for Key Vault named values
-    - TLS 1.0/1.1/SSL3 and 3DES disabled
+    - TLS 1.0/1.1 disabled. SSL3/3DES customProperties only on Developer (Consumption rejects them).
     - minApiVersion blocks old control-plane APIs
     - Global policy from policies/ (loadTextContent, same as samples)
   Child resources:
@@ -45,6 +45,20 @@ param enableDeleteLock bool = false
 var skuCapacity = sku == 'Consumption' ? 0 : 1
 var resolvedNotificationEmail = empty(notificationSenderEmail) ? publisherEmail : notificationSenderEmail
 
+// Consumption rejects Protocols.Ssl30 and Ciphers.TripleDes168 (even when False).
+var tlsCustomProperties = {
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10': 'False'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11': 'False'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls10': 'False'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11': 'False'
+}
+var classicSkuCipherProperties = {
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Ssl30': 'False'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Ssl30': 'False'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TripleDes168': 'False'
+}
+var customProperties = sku == 'Consumption' ? tlsCustomProperties : union(tlsCustomProperties, classicSkuCipherProperties)
+
 resource apiManagement 'Microsoft.ApiManagement/service@2024-05-01' = {
   name: name
   location: location
@@ -72,15 +86,7 @@ resource apiManagement 'Microsoft.ApiManagement/service@2024-05-01' = {
         negotiateClientCertificate: false
       }
     ]
-    customProperties: {
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10': 'False'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11': 'False'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Ssl30': 'False'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls10': 'False'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11': 'False'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Ssl30': 'False'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TripleDes168': 'False'
-    }
+    customProperties: customProperties
   }
 }
 

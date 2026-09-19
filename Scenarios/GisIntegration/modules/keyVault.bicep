@@ -18,32 +18,33 @@ param tags object = {}
 @maxValue(90)
 param softDeleteRetentionInDays int = 90
 
-@description('Purge protection cannot be disabled later. Leave false for a disposable demo vault.')
+@description('Purge protection cannot be disabled later. Leave false for a disposable demo vault. Do not send false to the API — omit the property.')
 param enablePurgeProtection bool = false
+
+var vaultProperties = {
+  sku: {
+    family: 'A'
+    name: 'standard'
+  }
+  tenantId: tenant().tenantId
+  enableRbacAuthorization: true
+  enableSoftDelete: true
+  softDeleteRetentionInDays: softDeleteRetentionInDays
+  enabledForDeployment: false
+  enabledForTemplateDeployment: false
+  enabledForDiskEncryption: false
+  publicNetworkAccess: 'Enabled'
+  networkAcls: {
+    defaultAction: 'Allow'
+    bypass: 'AzureServices'
+  }
+}
 
 resource keyVault 'Microsoft.KeyVault/vaults@2026-02-01' = {
   name: name
   location: location
   tags: tags
-  properties: {
-    sku: {
-      family: 'A'
-      name: 'standard'
-    }
-    tenantId: tenant().tenantId
-    enableRbacAuthorization: true
-    enableSoftDelete: true
-    softDeleteRetentionInDays: softDeleteRetentionInDays
-    enablePurgeProtection: enablePurgeProtection ? true : false
-    enabledForDeployment: false
-    enabledForTemplateDeployment: false
-    enabledForDiskEncryption: false
-    publicNetworkAccess: 'Enabled'
-    networkAcls: {
-      defaultAction: 'Allow'
-      bypass: 'AzureServices'
-    }
-  }
+  properties: enablePurgeProtection ? union(vaultProperties, { enablePurgeProtection: true }) : vaultProperties
 }
 
 output id string = keyVault.id

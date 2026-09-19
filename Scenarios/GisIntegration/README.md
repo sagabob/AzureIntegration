@@ -48,7 +48,7 @@ On Environment **`demo`**, set variables (not secrets):
 - `@secure()` for any secret parameter; no secret values in `.bicepparam`
 - APIM named values that hold credentials: `secret: true` + Key Vault `secretIdentifier`
 - APIs added later: `loadTextContent` policies; prefer `validate-jwt` (Entra); `allowTracing: false` on subscriptions
-- Gateway/backend TLS 1.0, 1.1, SSL 3.0 and 3DES disabled; `minApiVersion` blocks old control-plane APIs
+- Gateway/backend TLS 1.0 and 1.1 disabled. SSL 3.0 / 3DES custom properties are set only on Developer SKU (Consumption rejects them; those protocols are already off). `minApiVersion` blocks old control-plane APIs
 - Gateway does not request client TLS certificates (ordinary HTTPS, not mTLS)
 - Global policy (`modules/policies/global-policy.xml`) strips `Server` / `X-Powered-By` and does not echo `LastError` to clients
 - Key Vault: RBAC only, soft-delete 90 days, deployment/template/disk encryption flags off
