@@ -1,0 +1,50 @@
+---
+description: Company-style Azure security — treat this repo as practice for secure work
+alwaysApply: true
+---
+
+# Azure security (company practice)
+
+This repo is a **practice ground for a secure company**. Prefer the work pattern even in demos. If a demo must relax a control (cost, Consumption APIM, tear-down), say so in the file and do **not** copy that relaxation to production.
+
+## Identity and deploy
+
+- GitHub Actions authenticates with **OIDC only**. Never create or store `AZURE_CLIENT_SECRET`.
+- Scope federated credentials to a GitHub **Environment**, not a person.
+- Deploy from Actions only. No local “deploy Azure resources” scripts.
+- Pipeline identity: Contributor + User Access Administrator only if it must create RGs and assign RBAC. Prefer Bicep role assignments over ad-hoc `az`.
+- Give the pipeline Key Vault **Officer** only if CI must **write** secrets.
+
+## Configuration (no secrets for identifiers)
+
+- Environment-specific values (tenant, subscription, client id, RG, location, publisher email) live in **GitHub Environment variables**. Read `vars.NAME` only — no `|| 'hardcoded'` and no `|| secrets` for non-secrets.
+- Fail the workflow if a required variable is missing **before** lint/login/deploy.
+- Never put secret **values** in Bicep, `.bicepparam`, workflows, or git. Use `@secure()` and Key Vault.
+
+## Key Vault and humans
+
+- Grant vault access in **Bicep**, not `az role assignment` for a named person.
+- Workloads (APIM, apps): **Key Vault Secrets User** on a **managed identity**.
+- Humans: an **Entra security group** as **Key Vault Secrets Officer**. Forbidden: user object IDs in GitHub (`KEYVAULT_OFFICER_OBJECT_ID`).
+- Membership changes happen in Entra, not in CI.
+
+```bicep
+// ✅ group in Bicep (empty = skip)
+param keyVaultOfficerGroupObjectId string = ''
+```
+
+## APIM
+
+- Credentials in named values: `secret: true` + Key Vault `secretIdentifier`.
+- Prefer `validate-jwt` (Entra). `allowTracing: false` on subscriptions.
+
+## Demo-only (do not copy to work without turning these on)
+
+| This demo | At a secure company |
+|-----------|---------------------|
+| Vault `publicNetworkAccess: Enabled` (Consumption APIM cannot use VNet) | Private endpoint / `Disabled` + allow listed networks |
+| `enablePurgeProtection = false` so the vault can be deleted | Purge protection **on** for anything with real secrets |
+| `enableDeleteLock = false` | Locks on shared gateways |
+| Officer group optional / empty | Officer **group required**; no individual Owner on the vault |
+| Manual `workflow_dispatch` | Environment **required reviewers** + branch protection |
+| Location from `resourceGroup().location` after Actions creates the RG | Same idea: region from pipeline/env, not committed literals |

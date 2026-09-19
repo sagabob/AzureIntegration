@@ -1,0 +1,122 @@
+name: Deploy GisIntegration
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_what_if:
+        description: Skip what-if and deploy immediately
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gisintegration-demo
+  cancel-in-progress: false
+
+env:
+  BICEP_FILE: Scenarios/GisIntegration/main.bicep
+  BICEP_PARAMS: Scenarios/GisIntegration/main.bicepparam
+  DEPLOYMENT_NAME: gisint-demo
+
+jobs:
+  validate:
+    name: Validate configuration
+    runs-on: ubuntu-latest
+    environment: demo
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      LOCATION: ${{ vars.AZURE_LOCATION }}
+      PUBLISHER_EMAIL: ${{ vars.APIM_PUBLISHER_EMAIL }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - name: Check required variables
+        run: |
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID PUBLISHER_EMAIL RESOURCE_GROUP LOCATION; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set. Add the matching variable on the demo environment (or the repo)."
+              missing=1
+            else
+              echo "$name is set"
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Stop. Set the missing values before lint or deploy."
+            exit 1
+          fi
+
+  lint:
+    name: Lint Bicep
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint
+        run: |
+          az bicep install
+          az bicep lint --file "$BICEP_FILE"
+
+  deploy:
+    name: Deploy demo
+    needs: [validate, lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: demo
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      LOCATION: ${{ vars.AZURE_LOCATION }}
+      PUBLISHER_EMAIL: ${{ vars.APIM_PUBLISHER_EMAIL }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create resource group
+        run: |
+          az group create --name "$RESOURCE_GROUP" --location "$LOCATION" --output none
+          az bicep install
+          echo "Resource group: $RESOURCE_GROUP"
+
+      - name: What-if
+        if: ${{ inputs.skip_what_if != true }}
+        run: |
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file "$BICEP_FILE" \
+            --parameters "$BICEP_PARAMS" \
+            --parameters "publisherEmail=$PUBLISHER_EMAIL"
+
+      - name: Deploy
+        run: |
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$DEPLOYMENT_NAME" \
+            --template-file "$BICEP_FILE" \
+            --parameters "$BICEP_PARAMS" \
+            --parameters "publisherEmail=$PUBLISHER_EMAIL" \
+            --output none
+
+          echo "Outputs:"
+          az deployment group show \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$DEPLOYMENT_NAME" \
+            --query "properties.outputs" \
+            --output json

@@ -1,0 +1,36 @@
+# Local sample / reference copies — do not check in
+/_Samples/
+
+# Bicep compiler cache and Azure CLI local state
+.azure/
+.bicep/
+bin/
+obj/
+
+# Compiled ARM / parameter JSON from `az bicep build` and `az bicep build-params`
+# Source of truth is .bicep / .bicepparam. Do not commit generated templates
+# (they can inline expanded values).
+Scenarios/**/*.json
+!Scenarios/**/bicepconfig.json
+*.parameters.json
+
+# Secrets and local-only parameter overrides (never commit values)
+.env
+.env.*
+!.env.example
+*.local.bicepparam
+*.secrets.bicepparam
+*.pfx
+*.key
+*.pem
+*.cer
+*.publishsettings
+*.pubxml
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vs/
+.history/
+*.user
+*.suo
