@@ -16,6 +16,7 @@ module api '../apimOpenApi.bicep' = {
     apiDisplayName: 'Tdp Gis API'
     backendUrl: backendUrl
     openApiJson: loadTextContent('tdp-gis.json')
+    policyXml: loadTextContent('../policies/tdp-gis-api.xml')
   }
 }
 

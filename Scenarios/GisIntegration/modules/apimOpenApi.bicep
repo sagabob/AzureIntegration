@@ -32,6 +32,9 @@ param openApiJson string
 ])
 param openApiFormat string = 'openapi+json'
 
+@description('API policy XML. Empty uses the shared inherit-global policy.')
+param policyXml string = ''
+
 var resolvedDisplayName = empty(apiDisplayName) ? apiName : apiDisplayName
 
 resource apim 'Microsoft.ApiManagement/service@2024-05-01' existing = {
@@ -59,7 +62,7 @@ resource apiPolicy 'Microsoft.ApiManagement/service/apis/policies@2024-05-01' = 
   parent: api
   name: 'policy'
   properties: {
-    value: loadTextContent('policies/api-inherit-global.xml')
+    value: empty(policyXml) ? loadTextContent('policies/api-inherit-global.xml') : policyXml
     format: 'rawxml'
   }
 }

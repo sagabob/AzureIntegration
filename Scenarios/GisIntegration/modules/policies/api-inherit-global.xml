@@ -1,8 +1,11 @@
 <policies>
     <inbound>
         <base />
-        <!-- Consumption APIM often drops gzip/chunked JSON (HTTP 200, empty body). Do not ask the backend for compression. -->
+        <!-- Do not ask the backend for gzip (Consumption APIM can drop compressed bodies). -->
         <set-header name="Accept-Encoding" exists-action="delete" />
+        <!-- Portal Test / browsers send Origin. ACA CORS then returns 200 with an empty body. Direct curl has no Origin. -->
+        <set-header name="Origin" exists-action="delete" />
+        <set-header name="Referer" exists-action="delete" />
     </inbound>
     <backend>
         <base />

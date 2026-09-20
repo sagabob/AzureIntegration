@@ -1,0 +1,37 @@
+<policies>
+    <inbound>
+        <base />
+        <set-header name="Accept-Encoding" exists-action="delete" />
+        <set-header name="Origin" exists-action="delete" />
+        <set-header name="Referer" exists-action="delete" />
+        <choose>
+            <when condition='@(context.Request.Headers.GetValueOrDefault("Authorization", "").StartsWith("Bearer ") == false)'>
+                <return-response>
+                    <set-status code="401" reason="Unauthorized" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error":"Authorization Bearer token is required"}</set-body>
+                </return-response>
+            </when>
+            <when condition='@(string.IsNullOrWhiteSpace(context.Request.Headers.GetValueOrDefault("X-Access-Token", "")))'>
+                <return-response>
+                    <set-status code="401" reason="Unauthorized" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error":"X-Access-Token is required"}</set-body>
+                </return-response>
+            </when>
+        </choose>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
