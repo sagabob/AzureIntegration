@@ -43,7 +43,7 @@ param keyVaultOfficerGroupObjectId string = ''
 - Keep APIM code free of environment URLs and spec filenames:
   - Generic import: `apimOpenApi.bicep` (no `loadTextContent` of a named swagger file).
   - API identity + spec: `modules/apis/<name>.bicep` next to `<name>.json` (the only literal `loadTextContent` path).
-  - Backend URL: GitHub Environment variable, passed into the catalog module.
+  - Backend URL: `main.bicepparam` for this demo (with the spec). At work, use an env-specific param file or a pipeline variable, not a URL inside `apimOpenApi.bicep`.
 - Do not loop `loadTextContent`. A new API is a new catalog pair + one `module` call in `main.bicep`.
 
 ## Demo-only (do not copy to work without turning these on)

@@ -7,6 +7,9 @@ param tagProjectCode = 'GisIntegration'
 param apimProductName = 'gis'
 param apimProductDisplayName = 'GIS'
 
+// Tdp GIS Container App base (no trailing slash, no /swagger). Empty skips the OpenAPI import.
+param gisApiBackendUrl = 'https://ca-tdpgis-api-demo.icysmoke-149afb76.australiaeast.azurecontainerapps.io'
+
 // Leave empty to generate globally unique names from the resource group id.
 param keyVaultName = ''
 param apiManagementName = ''

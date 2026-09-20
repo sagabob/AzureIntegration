@@ -53,7 +53,7 @@ param enableDeleteLock bool = false
 @description('Entra security group object ID granted Key Vault Secrets Officer. Empty skips. Do not pass a user OID.')
 param keyVaultOfficerGroupObjectId string = ''
 
-@description('Tdp GIS API HTTPS base (no trailing slash). From GIS_API_BACKEND_URL. Empty skips the OpenAPI import.')
+@description('Tdp GIS API HTTPS base (no trailing slash). From main.bicepparam. Empty skips the OpenAPI import.')
 param gisApiBackendUrl string = ''
 
 @description('APIM product id (URL-safe). All GIS APIs join this product.')

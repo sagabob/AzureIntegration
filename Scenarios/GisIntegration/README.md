@@ -11,7 +11,7 @@ Treat this as **practice for a secure company**. Copy the identity and secret pa
 | Key Vault | Standard | Store of record for secrets (RBAC, not access policies) |
 | API Management | **Consumption** | Cheap demo gateway — no dedicated unit, billed per call |
 | APIM product `gis` | — | All GIS APIs. One **product**; one **subscription** per caller (`gis-demo`, `allowTracing: false`) |
-| APIM API `tdp-gis` | OpenAPI import | Tdp GIS query GETs. Spec: [`modules/apis/tdp-gis.json`](modules/apis/tdp-gis.json). Backend from `GIS_API_BACKEND_URL`. |
+| APIM API `tdp-gis` | OpenAPI import | Tdp GIS query GETs. Spec: [`modules/apis/tdp-gis.json`](modules/apis/tdp-gis.json). Backend URL: `gisApiBackendUrl` in `main.bicepparam`. |
 
 Bicep never writes secret *values*. After deploy, put secrets in Key Vault out of band. Copy the `gis-demo` subscription key from the portal (APIM → Subscriptions), not from deployment outputs.
 
@@ -54,9 +54,8 @@ On Environment **`demo`**, set variables (not secrets):
 | `APIM_PUBLISHER_EMAIL` | APIM contact email |
 | `AZURE_RESOURCE_GROUP` | `rg-integration-demo` |
 | `AZURE_LOCATION` | `australiaeast` |
-| `GIS_API_BACKEND_URL` | `https://ca-tdpgis-api-demo....azurecontainerapps.io` (no trailing slash, no `/swagger`) |
 
-`publisherEmail` in `main.bicepparam` is a placeholder; Actions overrides it from `APIM_PUBLISHER_EMAIL`. `gisApiBackendUrl` is empty in params and is set from `GIS_API_BACKEND_URL`.
+`publisherEmail` in `main.bicepparam` is a placeholder; Actions overrides it from `APIM_PUBLISHER_EMAIL`. `gisApiBackendUrl` is set in `main.bicepparam` next to the OpenAPI spec (no GitHub variable).
 
 After apply, call through APIM (subscription `gis-demo` plus the two backend tokens):
 
@@ -72,9 +71,9 @@ When the Tdp GIS spec changes, replace [`modules/apis/tdp-gis.json`](modules/api
 ### Adding another GIS API
 
 1. Add `modules/apis/<name>.json` (OpenAPI) and `modules/apis/<name>.bicep` (copy [`tdp-gis.bicep`](modules/apis/tdp-gis.bicep); point `loadTextContent` at that JSON; set `apiName` / `apiPath` / display name).
-2. Add a GitHub Environment variable for that backend URL (same pattern as `GIS_API_BACKEND_URL`).
+2. Add the backend URL in `main.bicepparam` and a `param` on `main.bicep`; pass it into the new module call.
 3. In `main.bicep`, add one `module` call like `tdpGisApi` and pass APIM name, product output, and that URL.
-4. Do not edit `apimOpenApi.bicep` and do not put the swagger path in `main.bicepparam`.
+4. Do not edit `apimOpenApi.bicep`.
 
 ## Security
 
