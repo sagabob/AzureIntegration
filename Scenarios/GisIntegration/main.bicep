@@ -56,6 +56,14 @@ param keyVaultOfficerGroupObjectId string = ''
 @description('Tdp GIS API HTTPS base (no trailing slash). From main.bicepparam. Empty skips the OpenAPI import.')
 param gisApiBackendUrl string = ''
 
+@description('Entra tenant ID for validate-jwt. From GitHub AZURE_TENANT_ID. Not a secret.')
+@minLength(1)
+param entraTenantId string
+
+@description('Expected JWT aud for the GIS API. From GitHub GIS_API_AUDIENCE. Not a secret.')
+@minLength(1)
+param gisApiAudience string
+
 @description('APIM product id (URL-safe). All GIS APIs join this product.')
 param apimProductName string = 'gis'
 
@@ -114,8 +122,20 @@ module gisProduct 'modules/apimProduct.bicep' = {
   }
 }
 
+module apimNamedValues 'modules/apimNamedValues.bicep' = {
+  name: 'rg-deploy-apim-named-values'
+  params: {
+    apimName: apiManagement.outputs.name
+    entraTenantId: entraTenantId
+    gisApiAudience: gisApiAudience
+  }
+}
+
 module tdpGisApi 'modules/apis/tdp-gis.bicep' = if (!empty(gisApiBackendUrl)) {
   name: 'rg-deploy-apim-tdp-gis'
+  dependsOn: [
+    apimNamedValues
+  ]
   params: {
     apimName: apiManagement.outputs.name
     productName: gisProduct.outputs.productNameOut

@@ -47,11 +47,12 @@ jobs:
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      GIS_API_AUDIENCE: ${{ vars.GIS_API_AUDIENCE }}
     steps:
       - name: Check required variables
         run: |
           missing=0
-          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID PUBLISHER_EMAIL RESOURCE_GROUP LOCATION; do
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID PUBLISHER_EMAIL RESOURCE_GROUP LOCATION GIS_API_AUDIENCE; do
             if [ -z "${!name}" ]; then
               echo "::error::$name is not set. Add the matching variable on the demo environment (or the repo)."
               missing=1
@@ -86,7 +87,9 @@ jobs:
             --resource-group "$RESOURCE_GROUP" \
             --template-file "$BICEP_FILE" \
             --parameters "$BICEP_PARAMS" \
-            --parameters "publisherEmail=$PUBLISHER_EMAIL"
+            --parameters "publisherEmail=$PUBLISHER_EMAIL" \
+            --parameters "entraTenantId=$AZURE_TENANT_ID" \
+            --parameters "gisApiAudience=$GIS_API_AUDIENCE"
 
   apply:
     name: Apply
@@ -104,6 +107,7 @@ jobs:
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      GIS_API_AUDIENCE: ${{ vars.GIS_API_AUDIENCE }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -123,6 +127,8 @@ jobs:
             --template-file "$BICEP_FILE" \
             --parameters "$BICEP_PARAMS" \
             --parameters "publisherEmail=$PUBLISHER_EMAIL" \
+            --parameters "entraTenantId=$AZURE_TENANT_ID" \
+            --parameters "gisApiAudience=$GIS_API_AUDIENCE" \
             --output none
 
           echo "Outputs:"

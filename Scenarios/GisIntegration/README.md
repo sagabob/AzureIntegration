@@ -25,7 +25,7 @@ These are not alternatives.
 | How many | **One** for the GIS topic | **One per caller** (app, partner, team) |
 | When you add a new GIS API | Add `modules/apis/<name>.json` + `<name>.bicep`, call it from `main.bicep`, attach to product `gis` | Existing keys keep working; no new product |
 
-Do not create a product per POST. Do not use the built-in all-access subscription for real callers. At work, put each key in Key Vault after create; never commit it. Prefer `validate-jwt` later so keys are not the only control.
+Do not create a product per POST. Do not use the built-in all-access subscription for real callers. At work, put each key in Key Vault after create; never commit it. APIM `validate-jwt` checks the Entra Bearer token at the gateway; the product key is still the caller identity.
 
 ## Access (Key Vault RBAC)
 
@@ -54,8 +54,9 @@ On Environment **`demo`**, set variables (not secrets):
 | `APIM_PUBLISHER_EMAIL` | APIM contact email |
 | `AZURE_RESOURCE_GROUP` | `rg-integration-demo` |
 | `AZURE_LOCATION` | `australiaeast` |
+| `GIS_API_AUDIENCE` | JWT `aud` of the GIS Entra app (Application ID URI or client ID) |
 
-`publisherEmail` in `main.bicepparam` is a placeholder; Actions overrides it from `APIM_PUBLISHER_EMAIL`. `gisApiBackendUrl` is set in `main.bicepparam` next to the OpenAPI spec (no GitHub variable).
+`publisherEmail` in `main.bicepparam` is a placeholder; Actions overrides it from `APIM_PUBLISHER_EMAIL`. `gisApiBackendUrl` is set in `main.bicepparam` next to the OpenAPI spec (no GitHub variable). Tenant and audience for `validate-jwt` come from `AZURE_TENANT_ID` and `GIS_API_AUDIENCE` (named values `entra-tenant-id`, `gis-api-audience`).
 
 After apply, call through APIM (subscription `gis-demo` plus the two backend tokens):
 
@@ -79,7 +80,7 @@ When the Tdp GIS spec changes, replace [`modules/apis/tdp-gis.json`](modules/api
 
 - `@secure()` for any secret parameter; no secret values in `.bicepparam`
 - APIM named values that hold credentials: `secret: true` + Key Vault `secretIdentifier`
-- APIs added later: `loadTextContent` policies; prefer `validate-jwt` (Entra); `allowTracing: false` on subscriptions
+- `tdp-gis` inbound: `validate-jwt` (Entra) using named values; `allowTracing: false` on subscriptions
 - Gateway/backend TLS 1.0 and 1.1 disabled. SSL 3.0 / 3DES custom properties are set only on Developer SKU (Consumption rejects them; those protocols are already off). `minApiVersion` blocks old control-plane APIs
 - Gateway does not request client TLS certificates (ordinary HTTPS, not mTLS)
 - Global policy (`modules/policies/global-policy.xml`) strips `Server` / `X-Powered-By` and does not echo `LastError` to clients

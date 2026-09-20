@@ -46,7 +46,7 @@ resource api 'Microsoft.ApiManagement/service/apis@2024-05-01' = {
   name: apiName
   properties: {
     displayName: resolvedDisplayName
-    description: '${resolvedDisplayName}. Callers send APIM subscription key plus any backend tokens (Authorization, X-Access-Token).'
+    description: '${resolvedDisplayName}. Callers send APIM subscription key, an Entra Bearer token (validate-jwt), and X-Access-Token.'
     path: apiPath
     protocols: [
       'https'

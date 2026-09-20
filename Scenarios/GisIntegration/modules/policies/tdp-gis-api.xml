@@ -1,6 +1,22 @@
 <policies>
     <inbound>
         <base />
+        <rate-limit-by-key calls="60" renewal-period="60" counter-key="@(context.Subscription.Id)" />
+        <validate-jwt header="Authorization" require-scheme="Bearer" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized">
+            <openid-config url="https://login.microsoftonline.com/{{entra-tenant-id}}/v2.0/.well-known/openid-configuration" />
+            <audiences>
+                <audience>{{gis-api-audience}}</audience>
+            </audiences>
+            <issuers>
+                <issuer>https://login.microsoftonline.com/{{entra-tenant-id}}/v2.0</issuer>
+                <issuer>https://sts.windows.net/{{entra-tenant-id}}/</issuer>
+            </issuers>
+            <required-claims>
+                <claim name="roles" match="any">
+                    <value>TdpGisApi.Access</value>
+                </claim>
+            </required-claims>
+        </validate-jwt>
         <set-header name="Accept-Encoding" exists-action="override">
             <value>identity</value>
         </set-header>
@@ -8,21 +24,14 @@
         <set-header name="Referer" exists-action="delete" />
         <set-header name="X-Forwarded-Host" exists-action="delete" />
         <set-header name="Forwarded" exists-action="delete" />
+        <set-header name="Ocp-Apim-Subscription-Key" exists-action="delete" />
+        <set-query-parameter name="subscription-key" exists-action="delete" />
         <set-header name="Host" exists-action="override">
             <value>@(new Uri(context.Api.ServiceUrl.ToString()).Host)</value>
         </set-header>
         <set-backend-service base-url="@(context.Api.ServiceUrl.ToString().TrimEnd('/'))" />
         <rewrite-uri template="@(context.Request.OriginalUrl.Path.Substring(context.Api.Path.Length + 1))" />
         <choose>
-            <when condition='@(context.Request.Headers.GetValueOrDefault("Authorization", "").StartsWith("Bearer ") == false)'>
-                <return-response>
-                    <set-status code="401" reason="Unauthorized" />
-                    <set-header name="Content-Type" exists-action="override">
-                        <value>application/json</value>
-                    </set-header>
-                    <set-body>{"error":"Authorization Bearer token is required"}</set-body>
-                </return-response>
-            </when>
             <when condition='@(string.IsNullOrWhiteSpace(context.Request.Headers.GetValueOrDefault("X-Access-Token", "")))'>
                 <return-response>
                     <set-status code="401" reason="Unauthorized" />
@@ -39,9 +48,6 @@
     </backend>
     <outbound>
         <base />
-        <set-header name="X-Gis-Upstream" exists-action="override">
-            <value>@(context.Request.Url.ToString())</value>
-        </set-header>
         <set-body>@{
             return context.Response.Body.As<string>(preserveContent: true);
         }</set-body>
