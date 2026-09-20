@@ -12,16 +12,7 @@
             <value>@(new Uri(context.Api.ServiceUrl.ToString()).Host)</value>
         </set-header>
         <set-backend-service base-url="@(context.Api.ServiceUrl.ToString().TrimEnd('/'))" />
-        <rewrite-uri template="@{
-            var suffix = context.Api.Path ?? string.Empty;
-            var prefix = suffix.StartsWith('/') ? suffix : '/' + suffix;
-            var path = context.Request.OriginalUrl.Path;
-            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            {
-                path = path.Substring(prefix.Length);
-            }
-            return string.IsNullOrEmpty(path) ? '/' : path;
-        }" />
+        <rewrite-uri template="@(context.Request.OriginalUrl.Path.Substring(context.Api.Path.Length + 1))" />
         <choose>
             <when condition='@(context.Request.Headers.GetValueOrDefault("Authorization", "").StartsWith("Bearer ") == false)'>
                 <return-response>
