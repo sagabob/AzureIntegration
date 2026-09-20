@@ -1,6 +1,8 @@
 <policies>
     <inbound>
         <base />
+        <!-- Consumption APIM often drops gzip/chunked JSON (HTTP 200, empty body). Do not ask the backend for compression. -->
+        <set-header name="Accept-Encoding" exists-action="delete" />
     </inbound>
     <backend>
         <base />
