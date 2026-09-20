@@ -1,9 +1,9 @@
 <policies>
     <inbound>
         <base />
-        <!-- Do not ask the backend for gzip (Consumption APIM can drop compressed bodies). -->
-        <set-header name="Accept-Encoding" exists-action="delete" />
-        <!-- Portal Test / browsers send Origin. ACA CORS then returns 200 with an empty body. Direct curl has no Origin. -->
+        <set-header name="Accept-Encoding" exists-action="override">
+            <value>identity</value>
+        </set-header>
         <set-header name="Origin" exists-action="delete" />
         <set-header name="Referer" exists-action="delete" />
     </inbound>
