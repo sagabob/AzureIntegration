@@ -1,0 +1,330 @@
+{
+  "x-generator": "NSwag v14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))",
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Tdp Gis API",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "https://ca-tdpgis-api-demo.icysmoke-149afb76.australiaeast.azurecontainerapps.io"
+    }
+  ],
+  "paths": {
+    "/api/gis-workspace-entities/{workspaceId}": {
+      "get": {
+        "tags": [
+          "Api"
+        ],
+        "summary": "Returns GIS entity definitions for the workspace when tokens are valid.",
+        "description": "Path: `workspaceId`. Send `Authorization: Bearer` (Microsoft Entra access token) and `X-Access-Token` (workspace access token). Response header `X-TdpGis-Workspace-Token-Public` reflects the token's IsPublic flag.",
+        "operationId": "TdpGisApiGisQueryEndpointsGetGisWorkspaceEntitiesEndpoint",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TdpGisApplicationAppModelsGisConnectionDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/gis-workspace/{workspaceId}/entity/{entityId}/search/{searchedPhrase}": {
+      "get": {
+        "tags": [
+          "Api"
+        ],
+        "summary": "Phrase query: returns mapped GIS rows for an entity where QueryField matches the search phrase.",
+        "description": "Path: `workspaceId`, `entityId`, `searchedPhrase`. Optional query `maxResults` (default 10, max 100). Send `Authorization: Bearer` (Entra) and `X-Access-Token` (workspace access token).",
+        "operationId": "TdpGisApiGisQueryEndpointsSearchGisEntityEndpoint",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            }
+          },
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            }
+          },
+          {
+            "name": "searchedPhrase",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxResults",
+            "in": "query",
+            "description": "Optional max rows to return (1–100).",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TdpGisApiGisQueryMessagesSearchGisEntityResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TdpGisApplicationAppModelsGisConnectionDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "entity",
+          "geometryType",
+          "queryField",
+          "propertyMappings",
+          "entityLabel"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "entity": {
+            "type": "string"
+          },
+          "geometryType": {
+            "$ref": "#/components/schemas/TdpGisDomainGeometryType"
+          },
+          "queryField": {
+            "type": "string"
+          },
+          "propertyMappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TdpGisDomainPropertyMapping"
+            }
+          },
+          "entityLabel": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "TdpGisDomainGeometryType": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Point",
+          "MultiPoint",
+          "LineString",
+          "MultiLineString",
+          "Polygon",
+          "MultiPolygon",
+          "GeometryCollection"
+        ],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      "TdpGisDomainPropertyMapping": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "propertyName",
+          "propertyLabel"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "columnType": {
+            "$ref": "#/components/schemas/TdpGisDomainPropertyType"
+          },
+          "propertyName": {
+            "type": "string"
+          },
+          "propertyLabel": {
+            "type": "string"
+          }
+        }
+      },
+      "TdpGisDomainPropertyType": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Normal",
+          "Object"
+        ],
+        "enum": [
+          0,
+          1
+        ]
+      },
+      "TdpGisApiGisQueryMessagesGetGisWorkspaceEntitiesRequest": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "TdpGisApiGisQueryMessagesSearchGisEntityResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "searchedPhrase",
+          "collections"
+        ],
+        "properties": {
+          "searchedPhrase": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "collections": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/SystemCollectionsGenericKeyValuePairOfStringAndJsonNode"
+              }
+            }
+          },
+          "workspaceTokenIsPublic": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SystemCollectionsGenericKeyValuePairOfStringAndJsonNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string",
+            "nullable": true
+          },
+          "value": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SystemTextJsonNodesJsonNode"
+              }
+            ]
+          }
+        }
+      },
+      "SystemTextJsonNodesJsonNode": {
+        "type": "object",
+        "x-abstract": true,
+        "additionalProperties": false,
+        "properties": {
+          "options": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SystemTextJsonNodesJsonNodeOptions"
+              }
+            ]
+          },
+          "parent": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SystemTextJsonNodesJsonNode"
+              }
+            ]
+          },
+          "root": {
+            "$ref": "#/components/schemas/SystemTextJsonNodesJsonNode"
+          }
+        }
+      },
+      "SystemTextJsonNodesJsonNodeOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "propertyNameCaseInsensitive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TdpGisApiGisQueryMessagesSearchGisEntityRequest": {
+        "type": "object",
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "Entra": {
+        "type": "http",
+        "description": "Microsoft Entra ID access token (Authorization: Bearer). Caller must have app role TdpGisApi.Access (or AzureAd:ApiAccessAppRole) in the `roles` claim.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "WorkspaceAccess": {
+        "type": "apiKey",
+        "description": "Workspace access token (GIS query routes).",
+        "name": "X-Access-Token",
+        "in": "header"
+      }
+    }
+  }
+}

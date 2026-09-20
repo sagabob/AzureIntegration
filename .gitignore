@@ -12,6 +12,7 @@ obj/
 # (they can inline expanded values).
 Scenarios/**/*.json
 !Scenarios/**/bicepconfig.json
+!Scenarios/**/modules/apis/*.json
 *.parameters.json
 
 # Secrets and local-only parameter overrides (never commit values)
