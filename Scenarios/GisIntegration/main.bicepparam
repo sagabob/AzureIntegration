@@ -18,8 +18,11 @@ param apiManagementName = ''
 // Developer: ~fixed monthly eval SKU with a developer portal; set capacity 1.
 param apiManagementSku = 'Consumption'
 
-// Overridden by the GitHub Action from APIM_PUBLISHER_EMAIL. Do not put secrets in this file.
+// Overridden by the GitHub Action from APIM_PUBLISHER_EMAIL / AZURE_TENANT_ID / GIS_API_AUDIENCE.
+// Do not put secrets or the real audience in this file.
 param publisherEmail = 'replace-me@example.com'
+param entraTenantId = '00000000-0000-0000-0000-000000000000'
+param gisApiAudience = 'replace-me'
 param publisherName = 'GisIntegration Demo'
 param notificationSenderEmail = ''
 
