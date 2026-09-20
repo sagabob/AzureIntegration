@@ -10,8 +10,22 @@ Treat this as **practice for a secure company**. Copy the identity and secret pa
 |----------|-----|---------|
 | Key Vault | Standard | Store of record for secrets (RBAC, not access policies) |
 | API Management | **Consumption** | Cheap demo gateway — no dedicated unit, billed per call |
+| APIM product `gis` | — | All GIS APIs. One **product**; one **subscription** per caller (`gis-demo`, `allowTracing: false`) |
+| APIM API `tdp-gis` | OpenAPI import | Tdp GIS query GETs. Spec: [`modules/apis/tdp-gis.json`](modules/apis/tdp-gis.json). Backend from `GIS_API_BACKEND_URL`. |
 
-Bicep never writes secret *values*. After deploy, put secrets in Key Vault out of band.
+Bicep never writes secret *values*. After deploy, put secrets in Key Vault out of band. Copy the `gis-demo` subscription key from the portal (APIM → Subscriptions), not from deployment outputs.
+
+## Product vs subscription
+
+These are not alternatives.
+
+| | Product `gis` | Subscription |
+|--|---------------|--------------|
+| What it is | A **bundle** of GIS APIs | A **caller’s key** for that bundle |
+| How many | **One** for the GIS topic | **One per caller** (app, partner, team) |
+| When you add a new GIS API | Add `modules/apis/<name>.json` + `<name>.bicep`, call it from `main.bicep`, attach to product `gis` | Existing keys keep working; no new product |
+
+Do not create a product per POST. Do not use the built-in all-access subscription for real callers. At work, put each key in Key Vault after create; never commit it. Prefer `validate-jwt` later so keys are not the only control.
 
 ## Access (Key Vault RBAC)
 
@@ -40,8 +54,27 @@ On Environment **`demo`**, set variables (not secrets):
 | `APIM_PUBLISHER_EMAIL` | APIM contact email |
 | `AZURE_RESOURCE_GROUP` | `rg-integration-demo` |
 | `AZURE_LOCATION` | `australiaeast` |
+| `GIS_API_BACKEND_URL` | `https://ca-tdpgis-api-demo....azurecontainerapps.io` (no trailing slash, no `/swagger`) |
 
-`publisherEmail` in `main.bicepparam` is a placeholder; Actions overrides it from `APIM_PUBLISHER_EMAIL`.
+`publisherEmail` in `main.bicepparam` is a placeholder; Actions overrides it from `APIM_PUBLISHER_EMAIL`. `gisApiBackendUrl` is empty in params and is set from `GIS_API_BACKEND_URL`.
+
+After apply, call through APIM (subscription `gis-demo` plus the two backend tokens):
+
+```text
+GET {gateway}/gis/api/gis-workspace-entities/{workspaceId}
+Ocp-Apim-Subscription-Key: <gis-demo key>
+Authorization: Bearer <Entra token>
+X-Access-Token: <workspace token>
+```
+
+When the Tdp GIS spec changes, replace [`modules/apis/tdp-gis.json`](modules/apis/tdp-gis.json) and redeploy. Do not point Bicep at the live `/swagger/v1/swagger.json` URL.
+
+### Adding another GIS API
+
+1. Add `modules/apis/<name>.json` (OpenAPI) and `modules/apis/<name>.bicep` (copy [`tdp-gis.bicep`](modules/apis/tdp-gis.bicep); point `loadTextContent` at that JSON; set `apiName` / `apiPath` / display name).
+2. Add a GitHub Environment variable for that backend URL (same pattern as `GIS_API_BACKEND_URL`).
+3. In `main.bicep`, add one `module` call like `tdpGisApi` and pass APIM name, product output, and that URL.
+4. Do not edit `apimOpenApi.bicep` and do not put the swagger path in `main.bicepparam`.
 
 ## Security
 

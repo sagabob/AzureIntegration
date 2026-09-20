@@ -4,6 +4,8 @@ param namePrefix = 'gisint'
 param environmentName = 'demo'
 param tagCostCentre = 'DEMO'
 param tagProjectCode = 'GisIntegration'
+param apimProductName = 'gis'
+param apimProductDisplayName = 'GIS'
 
 // Leave empty to generate globally unique names from the resource group id.
 param keyVaultName = ''

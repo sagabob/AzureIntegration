@@ -27,6 +27,7 @@ az role assignment create --assignee $APP_ID --role 'User Access Administrator' 
 | `APIM_PUBLISHER_EMAIL` | Your email (APIM contact only, not login) |
 | `AZURE_RESOURCE_GROUP` | `rg-integration-demo` |
 | `AZURE_LOCATION` | e.g. `australiaeast` |
+| `GIS_API_BACKEND_URL` | Tdp GIS Container App base URL (no `/swagger`) |
 
 7. **Actions → Deploy GisIntegration → Run workflow**.
 
@@ -235,6 +236,7 @@ Portal alternative: App registration → **Certificates & secrets → Federated 
 | `APIM_PUBLISHER_EMAIL` | Yes | APIM publisher email |
 | `AZURE_RESOURCE_GROUP` | Yes | Resource group to create/deploy into |
 | `AZURE_LOCATION` | Yes | Azure region for the resource group |
+| `GIS_API_BACKEND_URL` | Yes | Tdp GIS API HTTPS base (no trailing slash, no `/swagger`) |
 
 These are identifiers, not passwords. Do not add a user object ID for Key Vault. Human vault access is an **Entra group** in Bicep (`keyVaultOfficerGroupObjectId`).
 

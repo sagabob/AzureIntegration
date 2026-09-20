@@ -53,6 +53,15 @@ param enableDeleteLock bool = false
 @description('Entra security group object ID granted Key Vault Secrets Officer. Empty skips. Do not pass a user OID.')
 param keyVaultOfficerGroupObjectId string = ''
 
+@description('Tdp GIS API HTTPS base (no trailing slash). From GIS_API_BACKEND_URL. Empty skips the OpenAPI import.')
+param gisApiBackendUrl string = ''
+
+@description('APIM product id (URL-safe). All GIS APIs join this product.')
+param apimProductName string = 'gis'
+
+@description('APIM product display name.')
+param apimProductDisplayName string = 'GIS'
+
 var resourceTags = union({
   project: 'GisIntegration'
   environment: environmentName
@@ -93,6 +102,24 @@ module apiManagement 'modules/apiManagement.bicep' = {
     notificationSenderEmail: notificationSenderEmail
     sku: apiManagementSku
     enableDeleteLock: enableDeleteLock
+  }
+}
+
+module gisProduct 'modules/apimProduct.bicep' = {
+  name: 'rg-deploy-apim-gis-product'
+  params: {
+    apimName: apiManagement.outputs.name
+    productName: apimProductName
+    productDisplayName: apimProductDisplayName
+  }
+}
+
+module tdpGisApi 'modules/apis/tdp-gis.bicep' = if (!empty(gisApiBackendUrl)) {
+  name: 'rg-deploy-apim-tdp-gis'
+  params: {
+    apimName: apiManagement.outputs.name
+    productName: gisProduct.outputs.productNameOut
+    backendUrl: gisApiBackendUrl
   }
 }
 
