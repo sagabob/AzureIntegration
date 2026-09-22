@@ -28,15 +28,16 @@ az role assignment create --assignee $APP_ID --role 'User Access Administrator' 
 | `AZURE_RESOURCE_GROUP` | `rg-integration-demo` |
 | `AZURE_LOCATION` | e.g. `australiaeast` |
 
-7. **Actions → Deploy GisIntegration → Run workflow**.
+7. **Actions → Deploy LandingZone → Run workflow**. Copy `apiManagementNameOut` to Environment variable `APIM_NAME`.
+8. **Actions → Deploy GisIntegration → Run workflow** (needs `APIM_NAME` and `GIS_API_AUDIENCE`).
 
-Do **not** set `AZURE_CLIENT_SECRET` or `KEYVAULT_OFFICER_OBJECT_ID`. The Key Vault officers **group** is optional (`keyVaultOfficerGroupObjectId` in Bicep) and is not required to start the workflow.
+Do **not** set `AZURE_CLIENT_SECRET` or `KEYVAULT_OFFICER_OBJECT_ID`. The Key Vault officers **group** is optional (`keyVaultOfficerGroupObjectId` in landing-zone Bicep) and is not required to start the workflow.
 
 ---
 
 This repo deploys Azure resources from GitHub Actions **without a client secret**. GitHub proves who it is with a short-lived OpenID Connect (OIDC) token. Microsoft Entra exchanges that token for an Azure access token for an **app registration** (service principal).
 
-GisIntegration workflow: [`.github/workflows/gisintegration-deploy.yml`](../.github/workflows/gisintegration-deploy.yml).
+Landing zone: [`.github/workflows/landingzone-deploy.yml`](../.github/workflows/landingzone-deploy.yml). Scenario example: [`.github/workflows/gisintegration-deploy.yml`](../.github/workflows/gisintegration-deploy.yml).
 
 ## How the handshake works
 
@@ -61,7 +62,7 @@ Azure Resource Manager  →  az / Bicep deploy as that app
 
 Nothing in GitHub stores an Azure password. If the **subject** (`sub`) on the token does not match the federated credential exactly, login fails with `AADSTS70021`.
 
-The workflow runs only when you start it: **Actions → Deploy GisIntegration → Run workflow**. Pushes and pull requests do not deploy.
+Workflows run only when you start them: **Actions → Deploy LandingZone** then **Deploy GisIntegration**. Pushes and pull requests do not deploy.
 
 ## What you create (once)
 
@@ -250,7 +251,7 @@ That is already set on the **What-if (plan)** and **Apply** jobs. `id-token: wri
 
 ## 5. Run and verify
 
-**Actions → Deploy GisIntegration → Run workflow**.
+**Actions → Deploy LandingZone → Run workflow**, then **Deploy GisIntegration**.
 
 Expected path: **lint → what-if (plan) → apply**. Plan always runs; there is no skip. Missing Environment variables fail at the start of plan (before apply). If Environment **`demo`** has required reviewers, approve plan, read the what-if, then approve apply. Consumption APIM often takes several minutes.
 
@@ -268,10 +269,12 @@ Confirm Azure login as the app:
 | Authorization failed creating resources | App is missing **Contributor** on the subscription |
 | Authorization failed creating a role assignment or custom role | App is missing **User Access Administrator** on the **subscription** (RG-only is not enough for custom roles) |
 | Job skipped / waiting | GitHub Environment `demo` has required reviewers, or the environment name does not match |
-| Workflow never starts | It is manual only — use **Actions → Deploy GisIntegration → Run workflow** |
+| Workflow never starts | It is manual only — use **Actions → Deploy LandingZone** then **Deploy GisIntegration** |
 
 ## Related
 
 - [Federated credential script](../scripts/New-GitHubFederatedCredential.ps1)
+- [Landing zone](../library/LandingZones/README.md)
 - [GisIntegration scenario](../Scenarios/GisIntegration/README.md)
-- [Deploy workflow](../.github/workflows/gisintegration-deploy.yml)
+- [Landing zone workflow](../.github/workflows/landingzone-deploy.yml)
+- [GisIntegration workflow](../.github/workflows/gisintegration-deploy.yml)

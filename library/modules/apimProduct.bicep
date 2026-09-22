@@ -1,11 +1,11 @@
 /**************************************************************************
   Purpose: Reusable APIM product plus an optional demo subscription.
-  Product id comes from the caller (main.bicepparam). Do not output keys.
+  Product id comes from the scenario. Do not output keys.
 **************************************************************************/
 @description('Existing APIM service name.')
 param apimName string
 
-@description('Product id (URL-safe). Set in main.bicepparam.')
+@description('Product id (URL-safe).')
 @minLength(1)
 param productName string
 

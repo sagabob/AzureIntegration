@@ -7,6 +7,12 @@ alwaysApply: true
 
 This repo is a **practice ground for a secure company**. Prefer the work pattern even in demos. If a demo must relax a control (cost, Consumption APIM, tear-down), say so in the file and do **not** copy that relaxation to production.
 
+## Layout
+
+- `library/modules` — generic Bicep (no environment URLs, no swagger filenames).
+- `library/LandingZones` — one Key Vault, one APIM, optional Service Bus namespace. Deploy this first.
+- `Scenarios/<name>` — `main.bicep` + `main.bicepparam` + `apis/` only. Use `existing` APIM. Do not create another gateway.
+
 ## Identity and deploy
 
 - GitHub Actions authenticates with **OIDC only**. Never create or store `AZURE_CLIENT_SECRET`.
@@ -41,9 +47,9 @@ param keyVaultOfficerGroupObjectId string = ''
 - Prefer `validate-jwt` (Entra). `allowTracing: false` on subscriptions.
 - One **product** per topic; one **subscription** per caller. Do not create a product per operation.
 - Keep APIM code free of environment URLs and spec filenames:
-  - Generic import: `apimOpenApi.bicep` (no `loadTextContent` of a named swagger file).
-  - API identity + spec: `modules/apis/<name>.bicep` next to `<name>.json` (the only literal `loadTextContent` path).
-  - Backend URL: `main.bicepparam` for this demo (with the spec). At work, use an env-specific param file or a pipeline variable, not a URL inside `apimOpenApi.bicep`.
+  - Generic import: `library/modules/apimOpenApi.bicep` (no `loadTextContent` of a named swagger file).
+  - API identity + spec: `Scenarios/<scenario>/apis/<name>.bicep` next to `<name>.json` (the only literal `loadTextContent` path).
+  - Backend URL: scenario `main.bicepparam` for this demo (with the spec). At work, use an env-specific param file or a pipeline variable, not a URL inside `apimOpenApi.bicep`.
 - Do not loop `loadTextContent`. A new API is a new catalog pair + one `module` call in `main.bicep`.
 
 ## Demo-only (do not copy to work without turning these on)

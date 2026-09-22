@@ -13,6 +13,8 @@ obj/
 Scenarios/**/*.json
 !Scenarios/**/bicepconfig.json
 !Scenarios/**/modules/apis/*.json
+!Scenarios/**/apis/
+!Scenarios/**/apis/**
 *.parameters.json
 
 # Secrets and local-only parameter overrides (never commit values)

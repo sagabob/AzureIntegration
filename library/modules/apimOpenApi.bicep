@@ -1,6 +1,6 @@
 /**************************************************************************
   Purpose: Import OpenAPI into APIM and attach the API to an existing product.
-  Generic: no spec filename here. Catalog wrappers (modules/apis/*.bicep) load the JSON.
+  Generic: no spec filename here. Scenario catalog wrappers load the JSON.
 **************************************************************************/
 @description('Existing APIM service name.')
 param apimName string
@@ -8,7 +8,7 @@ param apimName string
 @description('Existing product name. Pass from the product module output.')
 param productName string
 
-@description('APIM API resource name (URL-safe). Set by the catalog wrapper, not main.bicepparam.')
+@description('APIM API resource name (URL-safe). Set by the catalog wrapper.')
 @minLength(1)
 param apiName string
 
@@ -19,7 +19,7 @@ param apiPath string
 @description('Portal display name. Empty uses apiName.')
 param apiDisplayName string = ''
 
-@description('Existing API HTTPS base URL (no trailing slash).')
+@description('Backend HTTPS base URL (no trailing slash).')
 param backendUrl string
 
 @description('OpenAPI document text. Caller loads a literal path with loadTextContent.')
@@ -46,7 +46,7 @@ resource api 'Microsoft.ApiManagement/service/apis@2024-05-01' = {
   name: apiName
   properties: {
     displayName: resolvedDisplayName
-    description: '${resolvedDisplayName}. Callers send APIM subscription key, an Entra Bearer token (validate-jwt), and X-Access-Token.'
+    description: '${resolvedDisplayName}. Callers send APIM subscription key plus any tokens required by this API policy.'
     path: apiPath
     protocols: [
       'https'
@@ -62,7 +62,7 @@ resource apiPolicy 'Microsoft.ApiManagement/service/apis/policies@2024-05-01' = 
   parent: api
   name: 'policy'
   properties: {
-    value: empty(policyXml) ? loadTextContent('policies/api-inherit-global.xml') : policyXml
+    value: empty(policyXml) ? loadTextContent('../policies/api-inherit-global.xml') : policyXml
     format: 'rawxml'
   }
 }

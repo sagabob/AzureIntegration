@@ -1,14 +1,10 @@
 /**************************************************************************
   Purpose: API Management instance (Consumption demo SKU by default).
   Security:
-    - System-assigned identity for Key Vault named values
+    - System-assigned identity for Key Vault named values and Service Bus
     - TLS 1.0/1.1 disabled. SSL3/3DES customProperties only on Developer (Consumption rejects them).
     - minApiVersion blocks old control-plane APIs
-    - Global policy from policies/ (loadTextContent, same as samples)
-  Child resources:
-    1. APIM service
-    2. Optional CanNotDelete lock
-    3. Global policy
+    - Global policy from library/policies/
 **************************************************************************/
 @description('API Management instance name (1–50 chars, globally unique, alphanumeric and hyphens).')
 @minLength(1)
@@ -26,7 +22,7 @@ param publisherEmail string
 @minLength(1)
 param publisherName string
 
-@description('Notification sender. Defaults to publisherEmail when empty (sample: notificationSenderEmail).')
+@description('Notification sender. Defaults to publisherEmail when empty.')
 param notificationSenderEmail string = ''
 
 @description('Consumption is pay-per-call with no dedicated unit (cheapest demo). Developer is a cheap always-on eval SKU with a developer portal.')
@@ -99,7 +95,7 @@ resource apimDeleteLock 'Microsoft.Authorization/locks@2020-05-01' = if (enableD
   }
 }
 
-var globalPolicy = loadTextContent('policies/global-policy.xml')
+var globalPolicy = loadTextContent('../policies/global-policy.xml')
 resource globalPolicyResource 'Microsoft.ApiManagement/service/policies@2024-05-01' = {
   name: 'policy'
   parent: apiManagement

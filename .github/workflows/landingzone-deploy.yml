@@ -1,7 +1,7 @@
-name: Deploy GisIntegration
+name: Deploy LandingZone
 
 # Company path: lint → plan (what-if) → apply. No skip-plan.
-# Requires landing zone first. Set APIM_NAME from landing zone outputs.
+# Shared platform. Run this before any scenario workflow.
 
 on:
   workflow_dispatch:
@@ -14,9 +14,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BICEP_FILE: Scenarios/GisIntegration/main.bicep
-  BICEP_PARAMS: Scenarios/GisIntegration/main.bicepparam
-  DEPLOYMENT_NAME: gisint-demo
+  BICEP_FILE: library/LandingZones/main.bicep
+  BICEP_PARAMS: library/LandingZones/main.bicepparam
+  DEPLOYMENT_NAME: landingzone-demo
 
 jobs:
   lint:
@@ -43,16 +43,15 @@ jobs:
     env:
       RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       LOCATION: ${{ vars.AZURE_LOCATION }}
+      PUBLISHER_EMAIL: ${{ vars.APIM_PUBLISHER_EMAIL }}
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      APIM_NAME: ${{ vars.APIM_NAME }}
-      GIS_API_AUDIENCE: ${{ vars.GIS_API_AUDIENCE }}
     steps:
       - name: Check required variables
         run: |
           missing=0
-          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID RESOURCE_GROUP LOCATION APIM_NAME GIS_API_AUDIENCE; do
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID PUBLISHER_EMAIL RESOURCE_GROUP LOCATION; do
             if [ -z "${!name}" ]; then
               echo "::error::$name is not set. Add the matching variable on the demo environment (or the repo)."
               missing=1
@@ -61,7 +60,7 @@ jobs:
             fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo "::error::Stop. Run Deploy LandingZone first, then set APIM_NAME from its outputs."
+            echo "::error::Stop. Set the missing values before plan or apply."
             exit 1
           fi
 
@@ -75,15 +74,20 @@ jobs:
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Create resource group
+        run: |
+          az group create --name "$RESOURCE_GROUP" --location "$LOCATION" --output none
+          az bicep install
+          echo "Resource group: $RESOURCE_GROUP"
+
       - name: What-if
         run: |
-          az bicep install
           az deployment group what-if \
             --resource-group "$RESOURCE_GROUP" \
             --template-file "$BICEP_FILE" \
             --parameters "$BICEP_PARAMS" \
-            --parameters "apimName=$APIM_NAME" \
-            --parameters "gisApiAudience=$GIS_API_AUDIENCE"
+            --parameters "publisherEmail=$PUBLISHER_EMAIL" \
+            --parameters "entraTenantId=$AZURE_TENANT_ID"
 
   apply:
     name: Apply
@@ -96,11 +100,11 @@ jobs:
       id-token: write
     env:
       RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      LOCATION: ${{ vars.AZURE_LOCATION }}
+      PUBLISHER_EMAIL: ${{ vars.APIM_PUBLISHER_EMAIL }}
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      APIM_NAME: ${{ vars.APIM_NAME }}
-      GIS_API_AUDIENCE: ${{ vars.GIS_API_AUDIENCE }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -119,8 +123,8 @@ jobs:
             --name "$DEPLOYMENT_NAME" \
             --template-file "$BICEP_FILE" \
             --parameters "$BICEP_PARAMS" \
-            --parameters "apimName=$APIM_NAME" \
-            --parameters "gisApiAudience=$GIS_API_AUDIENCE" \
+            --parameters "publisherEmail=$PUBLISHER_EMAIL" \
+            --parameters "entraTenantId=$AZURE_TENANT_ID" \
             --output none
 
           echo "Outputs:"
@@ -129,3 +133,4 @@ jobs:
             --name "$DEPLOYMENT_NAME" \
             --query "properties.outputs" \
             --output json
+          echo "::notice::Copy apiManagementNameOut to Environment variable APIM_NAME, and serviceBusNamespaceNameOut to SERVICE_BUS_NAMESPACE, then run a scenario workflow."
