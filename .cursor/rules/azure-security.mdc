@@ -11,7 +11,7 @@ This repo is a **practice ground for a secure company**. Prefer the work pattern
 
 - `library/modules` — generic Bicep (no environment URLs, no swagger filenames).
 - `library/LandingZones` — one Key Vault, one APIM, optional Service Bus namespace. Deploy this first.
-- `Scenarios/<name>` — `main.bicep` + `main.bicepparam` + `apis/` only. Use `existing` APIM. Do not create another gateway.
+- `Scenarios/<name>` — `main.bicep` + `main.bicepparam` + `apis/` (and optional `policies/` / `function/`). Use existing APIM, Service Bus, and Key Vault. Do not create another gateway.
 
 ## Identity and deploy
 

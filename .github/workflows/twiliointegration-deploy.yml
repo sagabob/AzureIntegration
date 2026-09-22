@@ -1,0 +1,237 @@
+name: Deploy TwilioIntegration
+
+# Company path: lint → plan (what-if) → apply. No skip-plan.
+# Requires landing zone first. Set APIM_NAME, SERVICE_BUS_NAMESPACE, KEY_VAULT_NAME from its outputs.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azureintegration-demo
+  cancel-in-progress: false
+
+env:
+  BICEP_FILE: Scenarios/TwilioIntegration/main.bicep
+  BICEP_PARAMS: Scenarios/TwilioIntegration/main.bicepparam
+  DEPLOYMENT_NAME: twilio-demo
+  FUNCTION_DIR: Scenarios/TwilioIntegration/function
+
+jobs:
+  lint:
+    name: Lint Bicep
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint
+        run: |
+          az bicep install
+          az bicep lint --file "$BICEP_FILE"
+
+  plan:
+    name: What-if (plan)
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: demo
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      LOCATION: ${{ vars.AZURE_LOCATION }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      APIM_NAME: ${{ vars.APIM_NAME }}
+      SERVICE_BUS_NAMESPACE: ${{ vars.SERVICE_BUS_NAMESPACE }}
+      KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+      AZURE_PIPELINE_OBJECT_ID: ${{ vars.AZURE_PIPELINE_OBJECT_ID }}
+      TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+      TWILIO_API_KEY: ${{ secrets.TWILIO_API_KEY }}
+      TWILIO_API_SECRET: ${{ secrets.TWILIO_API_SECRET }}
+      TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+    steps:
+      - name: Check required variables
+        run: |
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID RESOURCE_GROUP LOCATION APIM_NAME SERVICE_BUS_NAMESPACE KEY_VAULT_NAME; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set. Add the matching variable on the demo environment (or the repo)."
+              missing=1
+            else
+              echo "$name is set"
+            fi
+          done
+          for name in TWILIO_ACCOUNT_SID TWILIO_API_KEY TWILIO_API_SECRET TWILIO_FROM_NUMBER; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set. Add it as a Secret on the demo environment (not a variable)."
+              missing=1
+            else
+              echo "$name is set"
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Stop. Run Deploy LandingZone first, then set APIM_NAME, SERVICE_BUS_NAMESPACE, KEY_VAULT_NAME, and the Twilio secrets."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: What-if
+        run: |
+          az bicep install
+          PIPELINE_PRINCIPAL_ID="${AZURE_PIPELINE_OBJECT_ID}"
+          if [ -z "$PIPELINE_PRINCIPAL_ID" ]; then
+            PIPELINE_PRINCIPAL_ID=$(az ad sp show --id "$AZURE_CLIENT_ID" --query id --output tsv)
+          fi
+          if [ -z "$PIPELINE_PRINCIPAL_ID" ]; then
+            echo "::error::Could not resolve the pipeline object ID. Set AZURE_PIPELINE_OBJECT_ID on the demo environment."
+            exit 1
+          fi
+          echo "pipelinePrincipalId is set"
+
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file "$BICEP_FILE" \
+            --parameters "$BICEP_PARAMS" \
+            --parameters "apimName=$APIM_NAME" \
+            --parameters "serviceBusNamespaceName=$SERVICE_BUS_NAMESPACE" \
+            --parameters "keyVaultName=$KEY_VAULT_NAME" \
+            --parameters "pipelinePrincipalId=$PIPELINE_PRINCIPAL_ID"
+
+  apply:
+    name: Apply
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: demo
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      APIM_NAME: ${{ vars.APIM_NAME }}
+      SERVICE_BUS_NAMESPACE: ${{ vars.SERVICE_BUS_NAMESPACE }}
+      KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+      AZURE_PIPELINE_OBJECT_ID: ${{ vars.AZURE_PIPELINE_OBJECT_ID }}
+      TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+      TWILIO_API_KEY: ${{ secrets.TWILIO_API_KEY }}
+      TWILIO_API_SECRET: ${{ secrets.TWILIO_API_SECRET }}
+      TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy
+        run: |
+          PIPELINE_PRINCIPAL_ID="${AZURE_PIPELINE_OBJECT_ID}"
+          if [ -z "$PIPELINE_PRINCIPAL_ID" ]; then
+            PIPELINE_PRINCIPAL_ID=$(az ad sp show --id "$AZURE_CLIENT_ID" --query id --output tsv)
+          fi
+          if [ -z "$PIPELINE_PRINCIPAL_ID" ]; then
+            echo "::error::Could not resolve the pipeline object ID. Set AZURE_PIPELINE_OBJECT_ID on the demo environment."
+            exit 1
+          fi
+
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$DEPLOYMENT_NAME" \
+            --template-file "$BICEP_FILE" \
+            --parameters "$BICEP_PARAMS" \
+            --parameters "apimName=$APIM_NAME" \
+            --parameters "serviceBusNamespaceName=$SERVICE_BUS_NAMESPACE" \
+            --parameters "keyVaultName=$KEY_VAULT_NAME" \
+            --parameters "pipelinePrincipalId=$PIPELINE_PRINCIPAL_ID" \
+            --output none
+
+          echo "Outputs:"
+          az deployment group show \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$DEPLOYMENT_NAME" \
+            --query "properties.outputs" \
+            --output json
+
+      - name: Write Twilio secrets to Key Vault
+        run: |
+          missing=0
+          for name in TWILIO_ACCOUNT_SID TWILIO_API_KEY TWILIO_API_SECRET TWILIO_FROM_NUMBER KEY_VAULT_NAME; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+          write_secret() {
+            local secret_name="$1"
+            local secret_value="$2"
+            local attempt
+            for attempt in 1 2 3 4 5 6; do
+              if az keyvault secret set \
+                --vault-name "$KEY_VAULT_NAME" \
+                --name "$secret_name" \
+                --value "$secret_value" \
+                --output none \
+                --only-show-errors; then
+                echo "$secret_name written"
+                return 0
+              fi
+              echo "Key Vault write not ready yet (attempt $attempt). Waiting for RBAC."
+              sleep 15
+            done
+            echo "::error::Could not write $secret_name. Grant the pipeline Key Vault Secrets Officer or set AZURE_PIPELINE_OBJECT_ID."
+            return 1
+          }
+
+          write_secret "Twilio-AccountSid" "$TWILIO_ACCOUNT_SID"
+          write_secret "Twilio-ApiKey" "$TWILIO_API_KEY"
+          write_secret "Twilio-ApiSecret" "$TWILIO_API_SECRET"
+          write_secret "Twilio-FromNumber" "$TWILIO_FROM_NUMBER"
+
+      - name: Package and deploy function
+        run: |
+          FUNC_NAME=$(az deployment group show \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$DEPLOYMENT_NAME" \
+            --query "properties.outputs.functionAppNameOut.value" \
+            --output tsv)
+
+          if [ -z "$FUNC_NAME" ]; then
+            echo "::error::functionAppNameOut is empty. Bicep apply did not return the Function App name."
+            exit 1
+          fi
+
+          pushd "$FUNCTION_DIR"
+          npm ci --omit=dev
+          zip -r "$RUNNER_TEMP/twilio-function.zip" . -x "*.git*" -x "*local.settings.json"
+          popd
+
+          az functionapp deployment source config-zip \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$FUNC_NAME" \
+            --src "$RUNNER_TEMP/twilio-function.zip"

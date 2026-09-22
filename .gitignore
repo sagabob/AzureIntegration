@@ -7,15 +7,17 @@
 bin/
 obj/
 
-# Compiled ARM / parameter JSON from `az bicep build` and `az bicep build-params`
-# Source of truth is .bicep / .bicepparam. Do not commit generated templates
-# (they can inline expanded values).
-Scenarios/**/*.json
-!Scenarios/**/bicepconfig.json
-!Scenarios/**/modules/apis/*.json
-!Scenarios/**/apis/
-!Scenarios/**/apis/**
+# Compiled ARM from `az bicep build` (same stem as the .bicep file).
+# Do not ignore OpenAPI specs under apis/ — loadTextContent must see them.
+Scenarios/**/main.json
+library/**/main.json
 *.parameters.json
+
+!Scenarios/**/function/host.json
+!Scenarios/**/function/package.json
+!Scenarios/**/function/package-lock.json
+node_modules/
+local.settings.json
 
 # Secrets and local-only parameter overrides (never commit values)
 .env

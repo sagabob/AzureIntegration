@@ -1,0 +1,12 @@
+{
+  "name": "twilio-sms",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/functions/*.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.6.0"
+  }
+}

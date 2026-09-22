@@ -28,6 +28,7 @@ Workflow: [`.github/workflows/landingzone-deploy.yml`](../../.github/workflows/l
 |----------|--------|
 | `APIM_NAME` | `apiManagementNameOut` |
 | `SERVICE_BUS_NAMESPACE` | `serviceBusNamespaceNameOut` |
+| `KEY_VAULT_NAME` | `keyVaultNameOut` |
 
 Then run a scenario workflow (for example GisIntegration).
 

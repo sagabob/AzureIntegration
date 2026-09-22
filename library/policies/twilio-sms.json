@@ -1,0 +1,42 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Twilio SMS",
+    "version": "1.0",
+    "description": "Enqueue an SMS send request. APIM puts the body on the Service Bus queue."
+  },
+  "paths": {
+    "/messages": {
+      "post": {
+        "operationId": "enqueueSms",
+        "summary": "Queue an SMS",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["to", "body"],
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "description": "E.164 destination, for example +61400000000"
+                  },
+                  "body": {
+                    "type": "string",
+                    "description": "SMS text"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message accepted by Service Bus"
+          }
+        }
+      }
+    }
+  }
+}
