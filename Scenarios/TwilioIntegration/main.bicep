@@ -42,6 +42,11 @@ param apimProductName string = 'twilio'
 @description('APIM product display name.')
 param apimProductDisplayName string = 'Twilio'
 
+var resolvedApimName = trim(replace(apimName, '\r', ''))
+var resolvedServiceBusNamespaceName = trim(replace(serviceBusNamespaceName, '\r', ''))
+var resolvedKeyVaultName = trim(replace(keyVaultName, '\r', ''))
+var resolvedPipelinePrincipalId = trim(replace(pipelinePrincipalId, '\r', ''))
+
 var resourceTags = union({
   project: 'TwilioIntegration'
   environment: environmentName
@@ -59,7 +64,7 @@ var functionAppName = take(
   60
 )
 
-var serviceBusHostname = '${serviceBusNamespaceName}.servicebus.windows.net'
+var serviceBusHostname = '${resolvedServiceBusNamespaceName}.servicebus.windows.net'
 
 module storage '../../library/modules/storageAccount.bicep' = {
   name: 'twilio-storage'
@@ -80,10 +85,10 @@ module functionApp '../../library/modules/functionApp.bicep' = {
       TWILIO_QUEUE_NAME: queueName
       ServiceBusConnection__fullyQualifiedNamespace: serviceBusHostname
       ServiceBusConnection__credential: 'managedidentity'
-      TWILIO_ACCOUNT_SID: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=Twilio-AccountSid)'
-      TWILIO_API_KEY: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=Twilio-ApiKey)'
-      TWILIO_API_SECRET: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=Twilio-ApiSecret)'
-      TWILIO_FROM_NUMBER: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=Twilio-FromNumber)'
+      TWILIO_ACCOUNT_SID: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Twilio-AccountSid)'
+      TWILIO_API_KEY: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Twilio-ApiKey)'
+      TWILIO_API_SECRET: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Twilio-ApiSecret)'
+      TWILIO_FROM_NUMBER: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Twilio-FromNumber)'
     }
   }
 }
@@ -91,7 +96,7 @@ module functionApp '../../library/modules/functionApp.bicep' = {
 module smsQueue '../../library/modules/serviceBusQueue.bicep' = {
   name: 'twilio-queue'
   params: {
-    namespaceName: serviceBusNamespaceName
+    namespaceName: resolvedServiceBusNamespaceName
     queueName: queueName
     receiverPrincipalId: functionApp.outputs.principalId
     receiverPrincipalType: 'ServicePrincipal'
@@ -101,7 +106,7 @@ module smsQueue '../../library/modules/serviceBusQueue.bicep' = {
 module keyVaultAssignFunction '../../library/modules/keyVaultAssignRole.bicep' = {
   name: 'twilio-assign-kv-function'
   params: {
-    keyVaultName: keyVaultName
+    keyVaultName: resolvedKeyVaultName
     principalId: functionApp.outputs.principalId
     principalType: 'ServicePrincipal'
   }
@@ -109,11 +114,11 @@ module keyVaultAssignFunction '../../library/modules/keyVaultAssignRole.bicep' =
 
 var keyVaultSecretsOfficerRoleId = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
 
-module keyVaultAssignPipeline '../../library/modules/keyVaultAssignRole.bicep' = if (!empty(pipelinePrincipalId)) {
+module keyVaultAssignPipeline '../../library/modules/keyVaultAssignRole.bicep' = if (!empty(resolvedPipelinePrincipalId)) {
   name: 'twilio-assign-kv-pipeline'
   params: {
-    keyVaultName: keyVaultName
-    principalId: pipelinePrincipalId
+    keyVaultName: resolvedKeyVaultName
+    principalId: resolvedPipelinePrincipalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: keyVaultSecretsOfficerRoleId
   }
@@ -122,7 +127,7 @@ module keyVaultAssignPipeline '../../library/modules/keyVaultAssignRole.bicep' =
 module twilioProduct '../../library/modules/apimProduct.bicep' = {
   name: 'twilio-product'
   params: {
-    apimName: apimName
+    apimName: resolvedApimName
     productName: apimProductName
     productDisplayName: apimProductDisplayName
   }
@@ -131,7 +136,7 @@ module twilioProduct '../../library/modules/apimProduct.bicep' = {
 module serviceBusHostnameValue '../../library/modules/apimNamedValue.bicep' = {
   name: 'twilio-nv-sb-hostname'
   params: {
-    apimName: apimName
+    apimName: resolvedApimName
     namedValueName: 'twilio-service-bus-hostname'
     namedValue: serviceBusHostname
   }
@@ -140,7 +145,7 @@ module serviceBusHostnameValue '../../library/modules/apimNamedValue.bicep' = {
 module queueNameValue '../../library/modules/apimNamedValue.bicep' = {
   name: 'twilio-nv-queue'
   params: {
-    apimName: apimName
+    apimName: resolvedApimName
     namedValueName: 'twilio-sms-queue'
     namedValue: smsQueue.outputs.name
   }
@@ -153,13 +158,13 @@ module twilioSmsApi './apis/twilio-sms.bicep' = {
     queueNameValue
   ]
   params: {
-    apimName: apimName
+    apimName: resolvedApimName
     productName: twilioProduct.outputs.productNameOut
     backendUrl: 'https://${serviceBusHostname}'
   }
 }
 
-output apimNameOut string = apimName
+output apimNameOut string = resolvedApimName
 output productNameOut string = twilioProduct.outputs.productNameOut
 output apiNameOut string = twilioSmsApi.outputs.apiNameOut
 output apiPathOut string = twilioSmsApi.outputs.apiPathOut

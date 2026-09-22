@@ -58,6 +58,13 @@ jobs:
     steps:
       - name: Check required variables
         run: |
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID RESOURCE_GROUP LOCATION APIM_NAME SERVICE_BUS_NAMESPACE KEY_VAULT_NAME AZURE_PIPELINE_OBJECT_ID; do
+            raw="${!name}"
+            cleaned=$(printf '%s' "$raw" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            printf '%s=%s\n' "$name" "$cleaned" >> "$GITHUB_ENV"
+            printf -v "$name" '%s' "$cleaned"
+          done
+
           missing=0
           for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID RESOURCE_GROUP LOCATION APIM_NAME SERVICE_BUS_NAMESPACE KEY_VAULT_NAME; do
             if [ -z "${!name}" ]; then
@@ -135,6 +142,14 @@ jobs:
       TWILIO_API_SECRET: ${{ secrets.TWILIO_API_SECRET }}
       TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
     steps:
+      - name: Normalize identifiers
+        run: |
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID RESOURCE_GROUP APIM_NAME SERVICE_BUS_NAMESPACE KEY_VAULT_NAME AZURE_PIPELINE_OBJECT_ID; do
+            raw="${!name}"
+            cleaned=$(printf '%s' "$raw" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            printf '%s=%s\n' "$name" "$cleaned" >> "$GITHUB_ENV"
+          done
+
       - name: Checkout
         uses: actions/checkout@v4
 

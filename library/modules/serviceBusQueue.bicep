@@ -31,7 +31,7 @@ resource queue 'Microsoft.ServiceBus/namespaces/queues@2026-01-01' = {
   }
 }
 
-var serviceBusDataReceiverRoleId = '4f6d3b9b-027b-4f4c-9142-0e54d494dc01'
+var serviceBusDataReceiverRoleId = '4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0'
 
 resource receiverAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(receiverPrincipalId)) {
   name: guid(queue.id, receiverPrincipalId, serviceBusDataReceiverRoleId)
