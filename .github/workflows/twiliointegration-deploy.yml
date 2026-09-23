@@ -250,3 +250,8 @@ jobs:
             --resource-group "$RESOURCE_GROUP" \
             --name "$FUNC_NAME" \
             --src "$RUNNER_TEMP/twilio-function.zip"
+
+          az functionapp restart \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$FUNC_NAME" \
+            --output none

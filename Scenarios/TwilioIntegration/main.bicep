@@ -82,6 +82,7 @@ module functionApp '../../library/modules/functionApp.bicep' = {
     storageAccountName: storage.outputs.name
     extraAppSettings: {
       WEBSITE_RUN_FROM_PACKAGE: '1'
+      AzureWebJobsFeatureFlags: 'EnableWorkerIndexing'
       TWILIO_QUEUE_NAME: queueName
       ServiceBusConnection__fullyQualifiedNamespace: serviceBusHostname
       ServiceBusConnection__credential: 'managedidentity'
@@ -100,6 +101,15 @@ module smsQueue '../../library/modules/serviceBusQueue.bicep' = {
     queueName: queueName
     receiverPrincipalId: functionApp.outputs.principalId
     receiverPrincipalType: 'ServicePrincipal'
+  }
+}
+
+module functionNamespaceReceiver '../../library/modules/serviceBusAssignRole.bicep' = {
+  name: 'twilio-sb-function-receiver'
+  params: {
+    namespaceName: resolvedServiceBusNamespaceName
+    principalId: functionApp.outputs.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 

@@ -20,7 +20,7 @@ Caller  POST  {gateway}/twilio/messages
 | Named values | `twilio-service-bus-hostname`, `twilio-sms-queue` (not secrets) |
 | APIM API `twilio-sms` | POST `/messages`. Spec: [`library/policies/twilio-sms.json`](../../library/policies/twilio-sms.json). Backend is Service Bus REST. |
 | Queue `twilio-sms` | On the landing-zone namespace. Function identity is Data Receiver on this queue. |
-| Storage + Linux Consumption Function | Sends SMS. Twilio credentials are Key Vault references, not app setting values. |
+| Storage + Linux Consumption Function | Sends SMS. Twilio credentials are Key Vault references, not app setting values. Application Insights is created with the Function (workspace-based). |
 
 APIM is already Data Sender on the namespace (landing zone). Copy the `twilio-demo` subscription key from the portal (APIM → Subscriptions), not from deployment outputs.
 

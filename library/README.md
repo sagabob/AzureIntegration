@@ -18,7 +18,8 @@ No environment URLs and no swagger filenames in `modules/`.
 | `apimNamedValue.bicep` | One non-secret named value |
 | `serviceBus.bicep` | Shared namespace; optional Data Sender |
 | `serviceBusQueue.bicep` | One queue; optional Data Receiver |
+| `serviceBusAssignRole.bicep` | Data Receiver (or other role) on an existing namespace |
 | `storageAccount.bicep` | Function host storage (no key outputs) |
-| `functionApp.bicep` | Linux Consumption Function + system-assigned identity |
+| `functionApp.bicep` | Linux Consumption Function + system-assigned identity + optional Application Insights |
 
 `loadTextContent` of a named spec stays in the **scenario** catalog file (`Scenarios/.../apis/<name>.bicep`).

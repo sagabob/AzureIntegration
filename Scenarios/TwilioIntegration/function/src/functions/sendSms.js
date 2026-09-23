@@ -1,12 +1,49 @@
 const { app } = require('@azure/functions');
 
+function readPayload(message) {
+  if (message == null) {
+    return {};
+  }
+  if (typeof message === 'string') {
+    const text = message.trim();
+    if (!text) {
+      return {};
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  }
+  if (Buffer.isBuffer(message) || message instanceof Uint8Array) {
+    return readPayload(Buffer.from(message).toString('utf8'));
+  }
+  if (typeof message.body === 'string' && message.to == null) {
+    return readPayload(message.body);
+  }
+  if ((Buffer.isBuffer(message.body) || message.body instanceof Uint8Array) && message.to == null) {
+    return readPayload(message.body);
+  }
+  return message;
+}
+
 app.serviceBusQueue('sendSms', {
   connection: 'ServiceBusConnection',
-  queueName: '%TWILIO_QUEUE_NAME%',
+  queueName: 'twilio-sms',
   handler: async (message, context) => {
-    const payload = typeof message === 'string' ? JSON.parse(message) : message;
-    const to = payload && payload.to;
-    const body = payload && payload.body;
+    const payload = readPayload(message);
+    const to = payload.to;
+    const body = payload.body;
+
+    context.log('sendSms received', {
+      messageType: message === null ? 'null' : typeof message,
+      hasTo: Boolean(to),
+      hasBody: Boolean(body),
+      hasAccountSid: Boolean(process.env.TWILIO_ACCOUNT_SID),
+      hasApiKey: Boolean(process.env.TWILIO_API_KEY),
+      hasApiSecret: Boolean(process.env.TWILIO_API_SECRET),
+      hasFrom: Boolean(process.env.TWILIO_FROM_NUMBER),
+    });
 
     if (!to || !body) {
       throw new Error('Queue message must include to and body');
