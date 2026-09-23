@@ -4,8 +4,8 @@
         <set-header name="Accept-Encoding" exists-action="override">
             <value>identity</value>
         </set-header>
-        <set-backend-service base-url="https://{{twilio-service-bus-hostname}}" />
-        <rewrite-uri template="/{{twilio-sms-queue}}/messages" />
+        <set-backend-service base-url="https://{{twilio-service-bus-hostname}}/{{twilio-sms-queue}}" />
+        <rewrite-uri template="/messages" />
         <authentication-managed-identity resource="https://servicebus.azure.net/" />
         <set-header name="Content-Type" exists-action="override">
             <value>application/json</value>

@@ -160,7 +160,7 @@ module twilioSmsApi './apis/twilio-sms.bicep' = {
   params: {
     apimName: resolvedApimName
     productName: twilioProduct.outputs.productNameOut
-    backendUrl: 'https://${serviceBusHostname}'
+    backendUrl: 'https://${serviceBusHostname}/${queueName}'
   }
 }
 
