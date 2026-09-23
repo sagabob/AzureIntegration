@@ -15,7 +15,7 @@ param tags object = {}
 param storageAccountName string
 
 @description('Node major version for Linux Consumption.')
-param nodeVersion string = '20'
+param nodeVersion string = '24'
 
 @description('App settings merged with host defaults. Do not put secret values here; use Key Vault references.')
 param extraAppSettings object = {}

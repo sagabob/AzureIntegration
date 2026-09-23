@@ -81,7 +81,6 @@ module functionApp '../../library/modules/functionApp.bicep' = {
     tags: resourceTags
     storageAccountName: storage.outputs.name
     extraAppSettings: {
-      WEBSITE_RUN_FROM_PACKAGE: '1'
       AzureWebJobsFeatureFlags: 'EnableWorkerIndexing'
       TWILIO_QUEUE_NAME: queueName
       ServiceBusConnection__fullyQualifiedNamespace: serviceBusHostname

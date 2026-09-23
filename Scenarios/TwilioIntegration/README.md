@@ -59,10 +59,12 @@ POST {gateway}/twilio/messages
 Ocp-Apim-Subscription-Key: <twilio-demo key>
 Content-Type: application/json
 
-{"to":"+61400000000","body":"Hello from APIM"}
+{"to":"+61400000000","body":"sms_2fa"}
 ```
 
-Service Bus should return **201**. The Function then POSTs to Twilio. Check Function invocation logs if the SMS does not arrive.
+Service Bus should return **201**. The Function then POSTs to Twilio.
+
+A **Twilio trial** cannot send free-form text (`Hello from APIM`). `body` must be a predefined template name: `sms_2fa`, `sms_appointment_reminders`, `sms_order_confirmation`, `sms_delivery_updates`, `sms_customer_support`, `sms_marketing_promotions`, `sms_event_notifications`, `sms_account_alerts`, `sms_feedback_surveys`, or `sms_internal_alerts`. `to` must be a number you verified in the Twilio console. Upgrade the Twilio account to send custom bodies. Check Application Insights if a later send still dead-letters.
 
 At work, add `validate-jwt` (Entra) on this API the same way GisIntegration does. This demo uses the product key only so you can exercise the queue path without a second app registration.
 

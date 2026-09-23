@@ -236,6 +236,7 @@ jobs:
             --query "properties.outputs.functionAppNameOut.value" \
             --output tsv)
 
+          FUNC_NAME=$(printf '%s' "$FUNC_NAME" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
           if [ -z "$FUNC_NAME" ]; then
             echo "::error::functionAppNameOut is empty. Bicep apply did not return the Function App name."
             exit 1
@@ -246,10 +247,14 @@ jobs:
           zip -r "$RUNNER_TEMP/twilio-function.zip" . -x "*.git*" -x "*local.settings.json"
           popd
 
-          az functionapp deployment source config-zip \
+          # Linux Consumption: do not set WEBSITE_RUN_FROM_PACKAGE=1 (Windows-only).
+          # az functionapp deploy uploads the zip and sets the package URL.
+          az functionapp deploy \
             --resource-group "$RESOURCE_GROUP" \
             --name "$FUNC_NAME" \
-            --src "$RUNNER_TEMP/twilio-function.zip"
+            --src-path "$RUNNER_TEMP/twilio-function.zip" \
+            --type zip \
+            --async false
 
           az functionapp restart \
             --resource-group "$RESOURCE_GROUP" \
