@@ -1,6 +1,7 @@
-name: Deploy TwilioIntegration
+name: Deploy TwilioIntegration Infrastructure
 
 # Company path: lint → plan (what-if) → apply. No skip-plan.
+# Infra only. Function source is Deploy TwilioIntegration Function.
 # Requires landing zone first. Set APIM_NAME, SERVICE_BUS_NAMESPACE, KEY_VAULT_NAME from its outputs.
 
 on:
@@ -17,7 +18,6 @@ env:
   BICEP_FILE: Scenarios/TwilioIntegration/main.bicep
   BICEP_PARAMS: Scenarios/TwilioIntegration/main.bicepparam
   DEPLOYMENT_NAME: twilio-demo
-  FUNCTION_DIR: Scenarios/TwilioIntegration/function
 
 jobs:
   lint:
@@ -31,14 +31,6 @@ jobs:
         run: |
           az bicep install
           az bicep lint --file "$BICEP_FILE"
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-
-      - name: Build function
-        run: dotnet build "$FUNCTION_DIR/TwilioEmail.csproj" -c Release --nologo
 
   plan:
     name: What-if (plan)
@@ -161,11 +153,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-
       - name: Log in to Azure (OIDC)
         uses: azure/login@v2
         with:
@@ -201,6 +188,8 @@ jobs:
             --name "$DEPLOYMENT_NAME" \
             --query "properties.outputs" \
             --output json
+
+          echo "Copy functionAppNameOut to Environment variable FUNCTION_APP_NAME, then run Deploy TwilioIntegration Function."
 
       - name: Write Twilio secrets to Key Vault
         run: |
@@ -240,33 +229,3 @@ jobs:
           write_secret "Twilio-ApiKey" "$TWILIO_API_KEY"
           write_secret "Twilio-ApiSecret" "$TWILIO_API_SECRET"
           write_secret "Twilio-FromNumber" "$TWILIO_FROM_NUMBER"
-
-      - name: Package and deploy function
-        run: |
-          FUNC_NAME=$(az deployment group show \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$DEPLOYMENT_NAME" \
-            --query "properties.outputs.functionAppNameOut.value" \
-            --output tsv)
-
-          FUNC_NAME=$(printf '%s' "$FUNC_NAME" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-          if [ -z "$FUNC_NAME" ]; then
-            echo "::error::functionAppNameOut is empty. Bicep apply did not return the Function App name."
-            exit 1
-          fi
-
-          dotnet publish "$FUNCTION_DIR/TwilioEmail.csproj" -c Release -o "$RUNNER_TEMP/twilio-publish" --nologo
-          (cd "$RUNNER_TEMP/twilio-publish" && zip -r "$RUNNER_TEMP/twilio-function.zip" .)
-
-          # Linux Consumption (Y1) does not support az functionapp deploy (OneDeploy).
-          # config-zip uses Kudu zipdeploy and sets WEBSITE_RUN_FROM_PACKAGE to a blob URL.
-          az functionapp deployment source config-zip \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$FUNC_NAME" \
-            --src "$RUNNER_TEMP/twilio-function.zip" \
-            --build-remote false
-
-          az functionapp restart \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$FUNC_NAME" \
-            --output none

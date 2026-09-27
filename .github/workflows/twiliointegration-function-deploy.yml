@@ -1,0 +1,105 @@
+name: Deploy TwilioIntegration Function
+
+# App code only. Run after Deploy TwilioIntegration (infra).
+# Set FUNCTION_APP_NAME from that apply's functionAppNameOut. No ARM what-if.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azureintegration-twilio-function
+  cancel-in-progress: false
+
+env:
+  FUNCTION_DIR: Scenarios/TwilioIntegration/function
+
+jobs:
+  build:
+    name: Build function
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build
+        run: dotnet build "$FUNCTION_DIR/TwilioEmail.csproj" -c Release --nologo
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: demo
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+    steps:
+      - name: Check required variables
+        run: |
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID RESOURCE_GROUP FUNCTION_APP_NAME; do
+            raw="${!name}"
+            cleaned=$(printf '%s' "$raw" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            printf '%s=%s\n' "$name" "$cleaned" >> "$GITHUB_ENV"
+            printf -v "$name" '%s' "$cleaned"
+          done
+
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID RESOURCE_GROUP FUNCTION_APP_NAME; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set. Add the matching variable on the demo environment."
+              missing=1
+            else
+              echo "$name is set"
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Stop. Run Deploy TwilioIntegration first, then set FUNCTION_APP_NAME from functionAppNameOut."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Publish and zip-deploy
+        run: |
+          dotnet publish "$FUNCTION_DIR/TwilioEmail.csproj" -c Release -o "$RUNNER_TEMP/twilio-publish" --nologo
+          (cd "$RUNNER_TEMP/twilio-publish" && zip -r "$RUNNER_TEMP/twilio-function.zip" .)
+
+          # Linux Consumption (Y1) does not support az functionapp deploy (OneDeploy).
+          # config-zip uses Kudu zipdeploy and sets WEBSITE_RUN_FROM_PACKAGE to a blob URL.
+          az functionapp deployment source config-zip \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$FUNCTION_APP_NAME" \
+            --src "$RUNNER_TEMP/twilio-function.zip" \
+            --build-remote false
+
+          az functionapp restart \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$FUNCTION_APP_NAME" \
+            --output none

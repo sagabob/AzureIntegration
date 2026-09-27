@@ -77,6 +77,7 @@ Run **[Deploy LandingZone](../../library/LandingZones/README.md)** first. Then o
 | `APIM_NAME` | `apiManagementNameOut` (resource name only, no `.azure-api.net`) |
 | `SERVICE_BUS_NAMESPACE` | `serviceBusNamespaceNameOut` (the existing namespace, not a new name) |
 | `KEY_VAULT_NAME` | `keyVaultNameOut` |
+| `FUNCTION_APP_NAME` | `functionAppNameOut` from **Deploy TwilioIntegration Infrastructure** (not the landing zone) |
 | Plus the shared OIDC vars | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION` |
 
 Optional variable `AZURE_PIPELINE_OBJECT_ID` is the OIDC app object ID if `az ad sp show` is not allowed.
@@ -96,11 +97,15 @@ Do not put those values in Bicep, GitHub variables, or the workflow file. The Fu
 
 ## Deploy
 
-Workflow: [`.github/workflows/twiliointegration-deploy.yml`](../../.github/workflows/twiliointegration-deploy.yml).
+Two workflows. Infra does not zip-deploy code.
 
-1. **Actions → Deploy TwilioIntegration → Run workflow**
-2. **lint** (Bicep + `dotnet build`) → **what-if** → **apply**. No skip-plan.
-3. Apply writes vault secrets, publishes `TwilioEmail.csproj`, zip-deploys, then restarts the Function.
-4. Required reviewers on Environment **`demo`** (company control).
+1. **Actions → Deploy TwilioIntegration Infrastructure → Run workflow** ([`twiliointegration-deploy.yml`](../../.github/workflows/twiliointegration-deploy.yml))
+2. **lint** → **what-if** → **apply**. No skip-plan. Apply writes vault secrets and prints `functionAppNameOut`.
+3. Copy `functionAppNameOut` to Environment variable `FUNCTION_APP_NAME` (single line, no trailing Enter).
+4. **Actions → Deploy TwilioIntegration Function → Run workflow** ([`twiliointegration-function-deploy.yml`](../../.github/workflows/twiliointegration-function-deploy.yml))
+5. **build** → **zip-deploy** (`config-zip`) → restart. No ARM what-if.
+6. Required reviewers on Environment **`demo`** (company control) for both.
+
+Handler changes only need step 4. First time, or after the Function App name changes, run infra then the Function workflow.
 
 At work, add `validate-jwt` (Entra) on these APIs the same way GisIntegration does. This demo uses the product key only so you can exercise the queue path without a second app registration.
