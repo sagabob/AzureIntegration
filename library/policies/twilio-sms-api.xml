@@ -4,6 +4,9 @@
         <set-header name="Accept-Encoding" exists-action="override">
             <value>identity</value>
         </set-header>
+        <set-body>@{
+            return context.Request.Body.As<string>(preserveContent: true);
+        }</set-body>
         <set-backend-service base-url="https://{{twilio-service-bus-hostname}}/{{twilio-sms-queue}}" />
         <rewrite-uri template="/messages" />
         <authentication-managed-identity resource="https://servicebus.azure.net/" />
@@ -15,7 +18,7 @@
         </set-header>
     </inbound>
     <backend>
-        <forward-request buffer-request-content="true" />
+        <base />
     </backend>
     <outbound>
         <base />
