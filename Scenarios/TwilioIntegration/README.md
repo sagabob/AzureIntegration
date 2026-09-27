@@ -78,6 +78,7 @@ Run **[Deploy LandingZone](../../library/LandingZones/README.md)** first. Then o
 | `SERVICE_BUS_NAMESPACE` | `serviceBusNamespaceNameOut` (the existing namespace, not a new name) |
 | `KEY_VAULT_NAME` | `keyVaultNameOut` |
 | `FUNCTION_APP_NAME` | `functionAppNameOut` from **Deploy TwilioIntegration Infrastructure** (not the landing zone) |
+| `EMAIL_FROM_ADDRESS` | Sender address (not a secret), e.g. `noreply@example.com` |
 | Plus the shared OIDC vars | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION` |
 
 Optional variable `AZURE_PIPELINE_OBJECT_ID` is the OIDC app object ID if `az ad sp show` is not allowed.
@@ -93,7 +94,7 @@ Apply still writes these **Secrets** into the landing-zone vault (for when you a
 | `TWILIO_API_SECRET` | `Twilio-ApiSecret` | `TWILIO_API_SECRET` |
 | `TWILIO_FROM_NUMBER` | `Twilio-FromNumber` | `TWILIO_FROM_NUMBER` |
 | `EMAIL_SERVICE_API_KEY` | `Email-Service-ApiKey` | `EMAIL_SERVICE_API_KEY` |
-| `EMAIL_FROM_ADDRESS` | `Email-FromAddress` | `EMAIL_FROM_ADDRESS` |
+| Variable `EMAIL_FROM_ADDRESS` | `Email-FromAddress` | `EMAIL_FROM_ADDRESS` |
 
 Do not put those values in Bicep, GitHub variables, or the workflow file. The Function settings are Key Vault references. The pipeline is Key Vault Secrets Officer so CI can write them. The Function identity is Secrets User (read only).
 
