@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -31,31 +32,42 @@ public sealed class SendEmail
 
         var (apiKey, from) = EmailSendValidator.RequireResendSettings();
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = JsonContent.Create(new
+        var payload = new
         {
             from,
             to = new[] { queued.To },
             subject = queued.Subject,
             text = queued.Body
-        });
+        };
+        var resendRequest = JsonSerializer.Serialize(payload);
+        _logger.LogInformation(
+            "sendEmail calling Resend at {MelbourneTime}. request={ResendRequest}",
+            melbourne,
+            resendRequest);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        request.Content = JsonContent.Create(payload);
 
         using var response = await _http.SendAsync(request);
+        var resendBody = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
         {
-            var detail = await response.Content.ReadAsStringAsync();
             _logger.LogError(
-                "Resend rejected email at {MelbourneTime} to {To} with {Status}.",
+                "Resend rejected email at {MelbourneTime} to {To} with {Status}. request={ResendRequest} response={ResendResponse}",
                 melbourne,
                 queued.To,
-                (int)response.StatusCode);
-            throw new InvalidOperationException($"Resend returned {(int)response.StatusCode}: {detail}");
+                (int)response.StatusCode,
+                resendRequest,
+                resendBody);
+            throw new InvalidOperationException($"Resend returned {(int)response.StatusCode}: {resendBody}");
         }
 
         _logger.LogInformation(
-            "Resend accepted email at {MelbourneTime} to {To}.",
+            "Resend accepted email at {MelbourneTime} to {To}. request={ResendRequest} response={ResendResponse}",
             melbourne,
-            queued.To);
+            queued.To,
+            resendRequest,
+            resendBody);
     }
 }
