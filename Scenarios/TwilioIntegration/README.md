@@ -1,36 +1,41 @@
 # TwilioIntegration
 
-Email enqueue on the **shared landing-zone APIM**. This scenario does not create Key Vault, API Management, or a Service Bus namespace.
+Email and SMS enqueue on the **shared landing-zone APIM**. This scenario does not create Key Vault, API Management, or a Service Bus namespace.
 
 Treat this as **practice for a secure company**. Copy the identity and secret patterns; do not copy the cheap public-network shortcuts into production.
 
 ```text
-Caller  POST  {gateway}/twilio/emails
+Caller  POST  {gateway}/twilio-email/emails
           → APIM (product key + managed identity)
           → Service Bus queue  twilio-email
           → Function sendEmail  (queue trigger; handler is empty)
+
+Caller  POST  {gateway}/twilio-sms/messages
+          → APIM (product key + managed identity)
+          → Service Bus queue  twilio-sms
+          → Function sendSms  (queue trigger; handler is empty — add send later)
 ```
 
-Use the **same gateway** as GIS (`apiManagementGatewayUrl` from Deploy LandingZone, or Portal → APIM → Overview → Gateway URL). Twilio does not get a second APIM. Only the path changes: `/gis/...` vs `/twilio/emails`.
+Use the **same gateway** as GIS (`apiManagementGatewayUrl` from Deploy LandingZone, or Portal → APIM → Overview → Gateway URL). Twilio does not get a second APIM. The two APIs use different path prefixes (`twilio-email` and `twilio-sms`) because APIM will not let two HTTP APIs share path `twilio`.
 
 ## What this creates
 
 | Resource | Purpose |
 |----------|---------|
 | APIM product `twilio` | One **product**; one **subscription** per caller (`twilio-demo`, `allowTracing: false`) |
-| Named values | `twilio-service-bus-hostname`, `twilio-email-queue` (not secrets) |
+| Named values | `twilio-service-bus-hostname`, `twilio-email-queue`, `twilio-sms-queue` (not secrets) |
 | APIM API `twilio-email` | POST `/emails`. Spec: [`library/policies/twilio-email.json`](../../library/policies/twilio-email.json). Backend is Service Bus REST. |
-| Queue `twilio-email` | On the landing-zone namespace. Function identity is Data Receiver on the queue and the namespace. |
-| Storage + Linux Consumption Function | .NET 8 isolated worker (`TwilioEmail.csproj`). Trigger `sendEmail` on `twilio-email`. Handler logs and completes; no send yet. Application Insights is created with the Function. |
+| APIM API `twilio-sms` | POST `/messages`. Spec: [`library/policies/twilio-sms.json`](../../library/policies/twilio-sms.json). Backend is Service Bus REST. Send logic later. |
+| Queue `twilio-email` | Function identity is Data Receiver on the queue and the namespace. |
+| Queue `twilio-sms` | Same receiver. Kept so SMS can be developed later. |
+| Storage + Linux Consumption Function | .NET 8 isolated worker (`TwilioEmail.csproj`). Triggers `sendEmail` and `sendSms`. Both handlers log and complete; no send yet. Application Insights is created with the Function. |
 
 APIM is already Data Sender on the namespace (landing zone). Copy the `twilio-demo` subscription key from the portal (APIM → Subscriptions), not from deployment outputs.
 
-A previous SMS API (`twilio-sms`) and queue (`twilio-sms`) may still exist after apply. Delete those in the portal if you no longer need them.
-
-## Call
+## Call email
 
 ```http
-POST {gateway}/twilio/emails
+POST {gateway}/twilio-email/emails
 Ocp-Apim-Subscription-Key: <twilio-demo key>
 Content-Type: application/json
 
@@ -40,11 +45,28 @@ Content-Type: application/json
 | Piece | Value |
 |-------|--------|
 | Host | Landing-zone **Gateway URL** (not the Function `*.azurewebsites.net`) |
-| Path | `/twilio/emails` |
+| Path | `/twilio-email/emails` |
 | Key | Product subscription `twilio-demo` |
 | Body | `to`, `subject`, `body` |
 
+## Call SMS (enqueue only)
+
+```http
+POST {gateway}/twilio-sms/messages
+Ocp-Apim-Subscription-Key: <twilio-demo key>
+Content-Type: application/json
+
+{"to":"+61400000000","body":"Queued SMS"}
+```
+
+| Piece | Value |
+|-------|--------|
+| Path | `/twilio-sms/messages` |
+| Body | `to` (E.164), `body` |
+
 Success from Service Bus through APIM is **201**. The Function then completes the message. Do not call the Function URL (no HTTP trigger; that is a 404).
+
+A previous SMS API on path `twilio` is updated in place to path `twilio-sms`. Call `/twilio-sms/messages`, not `/twilio/messages`.
 
 ## Configuration
 
@@ -61,7 +83,7 @@ Optional variable `AZURE_PIPELINE_OBJECT_ID` is the OIDC app object ID if `az ad
 
 `apimName` / `serviceBusNamespaceName` / `keyVaultName` in `main.bicepparam` are placeholders; Actions overrides them.
 
-Apply still writes these **Secrets** into the landing-zone vault (for when you add send logic). They are not used by the empty handler:
+Apply still writes these **Secrets** into the landing-zone vault (for when you add send logic). They are not used by the empty handlers:
 
 | GitHub Secret | Key Vault name | Function setting |
 |---------------|----------------|------------------|
@@ -81,4 +103,4 @@ Workflow: [`.github/workflows/twiliointegration-deploy.yml`](../../.github/workf
 3. Apply writes vault secrets, publishes `TwilioEmail.csproj`, zip-deploys, then restarts the Function.
 4. Required reviewers on Environment **`demo`** (company control).
 
-At work, add `validate-jwt` (Entra) on this API the same way GisIntegration does. This demo uses the product key only so you can exercise the queue path without a second app registration.
+At work, add `validate-jwt` (Entra) on these APIs the same way GisIntegration does. This demo uses the product key only so you can exercise the queue path without a second app registration.

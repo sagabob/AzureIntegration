@@ -14,7 +14,7 @@ public sealed class SendEmail
 
     [Function("sendEmail")]
     public void Run(
-        [ServiceBusTrigger("twilio-email", Connection = "ServiceBusConnection")] string _)
+        [ServiceBusTrigger("%TWILIO_EMAIL_QUEUE_NAME%", Connection = "ServiceBusConnection")] string _)
     {
         _logger.LogInformation("sendEmail received a queue message. Handler is empty.");
     }

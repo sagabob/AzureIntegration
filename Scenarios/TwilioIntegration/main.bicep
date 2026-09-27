@@ -34,7 +34,10 @@ param tagProjectCode string = 'Twilio'
 param tags object = {}
 
 @description('Queue that receives email send requests.')
-param queueName string = 'twilio-email'
+param emailQueueName string = 'twilio-email'
+
+@description('Queue that receives SMS send requests. Handler is empty until send logic is added.')
+param smsQueueName string = 'twilio-sms'
 
 @description('APIM product id (URL-safe). All Twilio APIs join this product.')
 param apimProductName string = 'twilio'
@@ -83,7 +86,8 @@ module functionApp '../../library/modules/functionApp.bicep' = {
     workerRuntime: 'dotnet-isolated'
     runtimeVersion: '8.0'
     extraAppSettings: {
-      TWILIO_QUEUE_NAME: queueName
+      TWILIO_EMAIL_QUEUE_NAME: emailQueueName
+      TWILIO_SMS_QUEUE_NAME: smsQueueName
       ServiceBusConnection__fullyQualifiedNamespace: serviceBusHostname
       ServiceBusConnection__credential: 'managedidentity'
       TWILIO_ACCOUNT_SID: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Twilio-AccountSid)'
@@ -95,10 +99,20 @@ module functionApp '../../library/modules/functionApp.bicep' = {
 }
 
 module emailQueue '../../library/modules/serviceBusQueue.bicep' = {
-  name: 'twilio-queue'
+  name: 'twilio-email-queue'
   params: {
     namespaceName: resolvedServiceBusNamespaceName
-    queueName: queueName
+    queueName: emailQueueName
+    receiverPrincipalId: functionApp.outputs.principalId
+    receiverPrincipalType: 'ServicePrincipal'
+  }
+}
+
+module smsQueue '../../library/modules/serviceBusQueue.bicep' = {
+  name: 'twilio-sms-queue'
+  params: {
+    namespaceName: resolvedServiceBusNamespaceName
+    queueName: smsQueueName
     receiverPrincipalId: functionApp.outputs.principalId
     receiverPrincipalType: 'ServicePrincipal'
   }
@@ -152,8 +166,8 @@ module serviceBusHostnameValue '../../library/modules/apimNamedValue.bicep' = {
   }
 }
 
-module queueNameValue '../../library/modules/apimNamedValue.bicep' = {
-  name: 'twilio-nv-queue'
+module emailQueueNameValue '../../library/modules/apimNamedValue.bicep' = {
+  name: 'twilio-nv-email-queue'
   params: {
     apimName: resolvedApimName
     namedValueName: 'twilio-email-queue'
@@ -161,16 +175,38 @@ module queueNameValue '../../library/modules/apimNamedValue.bicep' = {
   }
 }
 
+module smsQueueNameValue '../../library/modules/apimNamedValue.bicep' = {
+  name: 'twilio-nv-sms-queue'
+  params: {
+    apimName: resolvedApimName
+    namedValueName: 'twilio-sms-queue'
+    namedValue: smsQueue.outputs.name
+  }
+}
+
 module twilioEmailApi './apis/twilio-email.bicep' = {
   name: 'twilio-email-api'
   dependsOn: [
     serviceBusHostnameValue
-    queueNameValue
+    emailQueueNameValue
   ]
   params: {
     apimName: resolvedApimName
     productName: twilioProduct.outputs.productNameOut
-    backendUrl: 'https://${serviceBusHostname}/${queueName}'
+    backendUrl: 'https://${serviceBusHostname}/${emailQueueName}'
+  }
+}
+
+module twilioSmsApi './apis/twilio-sms.bicep' = {
+  name: 'twilio-sms-api'
+  dependsOn: [
+    serviceBusHostnameValue
+    smsQueueNameValue
+  ]
+  params: {
+    apimName: resolvedApimName
+    productName: twilioProduct.outputs.productNameOut
+    backendUrl: 'https://${serviceBusHostname}/${smsQueueName}'
   }
 }
 
@@ -179,5 +215,8 @@ output productNameOut string = twilioProduct.outputs.productNameOut
 output apiNameOut string = twilioEmailApi.outputs.apiNameOut
 output apiPathOut string = twilioEmailApi.outputs.apiPathOut
 output queueNameOut string = emailQueue.outputs.name
+output smsApiNameOut string = twilioSmsApi.outputs.apiNameOut
+output smsApiPathOut string = twilioSmsApi.outputs.apiPathOut
+output smsQueueNameOut string = smsQueue.outputs.name
 output functionAppNameOut string = functionApp.outputs.name
 output storageAccountNameOut string = storage.outputs.name

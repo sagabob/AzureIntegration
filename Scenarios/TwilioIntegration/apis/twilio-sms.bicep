@@ -1,8 +1,8 @@
 /**************************************************************************
-  Purpose: Twilio email enqueue API. Owns the spec, policy, and API identity.
+  Purpose: Twilio SMS enqueue API. Owns the spec, policy, and API identity.
   Spec/policy live in library/policies so loadTextContent resolves in the editor
   (new scenario data folders are not visible to the Bicep language service).
-  Path is twilio-email (not twilio) so it can sit next to twilio-sms.
+  Path is twilio-sms (not twilio) so it can sit next to twilio-email.
 **************************************************************************/
 param apimName string
 param productName string
@@ -13,12 +13,12 @@ module api '../../../library/modules/apimOpenApi.bicep' = {
   params: {
     apimName: apimName
     productName: productName
-    apiName: 'twilio-email'
-    apiPath: 'twilio-email'
-    apiDisplayName: 'Twilio Email'
+    apiName: 'twilio-sms'
+    apiPath: 'twilio-sms'
+    apiDisplayName: 'Twilio SMS'
     backendUrl: backendUrl
-    openApiJson: loadTextContent('../../../library/policies/twilio-email.json')
-    policyXml: loadTextContent('../../../library/policies/twilio-email-api.xml')
+    openApiJson: loadTextContent('../../../library/policies/twilio-sms.json')
+    policyXml: loadTextContent('../../../library/policies/twilio-sms-api.xml')
   }
 }
 
