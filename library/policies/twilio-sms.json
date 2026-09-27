@@ -33,7 +33,7 @@
         },
         "responses": {
           "201": {
-            "description": "Message accepted by Service Bus"
+            "description": "201 only after the table row (status queued) and the Service Bus message both succeed"
           }
         }
       }

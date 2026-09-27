@@ -7,8 +7,9 @@ Treat this as **practice for a secure company**. Copy the identity and secret pa
 ```text
 Caller  POST  {gateway}/twilio-email/emails
           → APIM (product key + managed identity)
+          → table twiliomessages (status=queued, RowKey=request id)
           → Service Bus queue  twilio-email
-          → Function sendEmail  (queue trigger; sends via Resend)
+          → Function sendEmail  (updates status to sent or failed; Resend)
 
 Caller  POST  {gateway}/twilio-sms/messages
           → APIM (product key + managed identity)
@@ -23,7 +24,8 @@ Use the **same gateway** as GIS (`apiManagementGatewayUrl` from Deploy LandingZo
 | Resource | Purpose |
 |----------|---------|
 | APIM product `twilio` | One **product**; one **subscription** per caller (`twilio-demo`, `allowTracing: false`) |
-| Named values | `twilio-service-bus-hostname`, `twilio-email-queue`, `twilio-sms-queue` (not secrets) |
+| Named values | `twilio-service-bus-hostname`, `twilio-email-queue`, `twilio-sms-queue`, `twilio-table-hostname`, `twilio-message-table` (not secrets) |
+| Table `twiliomessages` | Payload + `Status`. APIM inserts `queued` (RowKey = APIM request id). Queue failure MERGEs `queueFailed`. Function merges `sent` / `failed`. APIM and Function identities are Table Data Contributor. |
 | APIM API `twilio-email` | POST `/emails`. Spec: [`library/policies/twilio-email.json`](../../library/policies/twilio-email.json). Backend is Service Bus REST. |
 | APIM API `twilio-sms` | POST `/messages`. Spec: [`library/policies/twilio-sms.json`](../../library/policies/twilio-sms.json). Backend is Service Bus REST. Send logic later. |
 | Queue `twilio-email` | Function identity is Data Receiver on the queue and the namespace. |
@@ -49,7 +51,7 @@ Content-Type: application/json
 | Key | Product subscription `twilio-demo` |
 | Body | `to` (well-formed email), `subject`, `body` — all required, non-blank |
 | 400 | Missing fields, blank strings, or `to` is not `local@domain.tld` (shape only; not mailbox or MX) |
-| 201 | Service Bus accepted |
+| 201 | Both succeeded: table row **and** queue. `{"status":"queued","id":"<APIM request id>"}` |
 
 ## Call SMS (enqueue only)
 
@@ -66,7 +68,9 @@ Content-Type: application/json
 | Path | `/twilio-sms/messages` |
 | Body | `to` (E.164), `body` |
 
-APIM returns **400** (and does not enqueue) if `to`, `subject`, or `body` is missing/blank, or if `to` is not a well-formed email. That check is format only — not mailbox existence or MX. Success from Service Bus is **201**. `sendEmail` then calls Resend and applies the same email-shape rule. A Resend error (bad key, unverified from-domain) retries and can dead-letter. Do not call the Function URL (no HTTP trigger; that is a 404).
+APIM returns **400** (and does not enqueue) if `to`, `subject`, or `body` is missing/blank, or if `to` is not a well-formed email. That check is format only — not mailbox existence or MX. APIM writes the payload to table `twiliomessages` (`Status=queued`, `RowKey` = request id), then the queue (body includes `id`). **201** only if both succeed. Table failure does not enqueue. Queue failure MERGEs the row to `queueFailed` and returns the Service Bus status (not 201). `sendEmail` calls Resend and merges `sent` or `failed` on the same row. A Resend error retries and can dead-letter. Do not call the Function URL (no HTTP trigger; that is a 404).
+
+Portal: storage account from `storageAccountNameOut` → **Storage browser** → **Tables** → `twiliomessages`. PartitionKey `email` or `sms`.
 
 A previous SMS API on path `twilio` is updated in place to path `twilio-sms`. Call `/twilio-sms/messages`, not `/twilio/messages`.
 

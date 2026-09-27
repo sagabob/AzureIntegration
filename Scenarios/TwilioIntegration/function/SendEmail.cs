@@ -8,12 +8,18 @@ namespace TwilioEmail;
 public sealed class SendEmail
 {
     private readonly IResendEmailSender _resend;
+    private readonly IMessageStatusStore _status;
     private readonly ResendSettings _settings;
     private readonly ILogger<SendEmail> _logger;
 
-    public SendEmail(IResendEmailSender resend, ResendSettings settings, ILogger<SendEmail> logger)
+    public SendEmail(
+        IResendEmailSender resend,
+        IMessageStatusStore status,
+        ResendSettings settings,
+        ILogger<SendEmail> logger)
     {
         _resend = resend;
+        _status = status;
         _settings = settings;
         _logger = logger;
     }
@@ -48,13 +54,16 @@ public sealed class SendEmail
                 result.StatusCode,
                 result.RequestJson,
                 result.ResponseBody);
+            await _status.SetStatusAsync(MessageStatuses.EmailPartition, queued.Id, MessageStatuses.Failed);
             throw new InvalidOperationException($"Resend returned {result.StatusCode}: {result.ResponseBody}");
         }
 
+        await _status.SetStatusAsync(MessageStatuses.EmailPartition, queued.Id, MessageStatuses.Sent);
         _logger.LogInformation(
-            "Resend accepted email at {MelbourneTime} to {To}. request={ResendRequest} response={ResendResponse}",
+            "Resend accepted email at {MelbourneTime} to {To} id={Id}. request={ResendRequest} response={ResendResponse}",
             melbourne,
             queued.To,
+            queued.Id,
             result.RequestJson,
             result.ResponseBody);
     }

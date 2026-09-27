@@ -19,7 +19,9 @@ var host = new HostBuilder()
         });
         // Resolved Key Vault values are already in the process environment.
         services.AddSingleton(_ => ResendSettings.FromEnvironment());
+        services.AddSingleton(_ => MessageTableSettings.FromEnvironment());
         services.AddSingleton<IResendEmailSender, ResendEmailSender>();
+        services.AddSingleton<IMessageStatusStore, TableMessageStatusStore>();
     })
     .Build();
 

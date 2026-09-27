@@ -20,6 +20,8 @@ No environment URLs and no swagger filenames in `modules/`.
 | `serviceBusQueue.bicep` | One queue; optional Data Receiver |
 | `serviceBusAssignRole.bicep` | Data Receiver (or other role) on an existing namespace |
 | `storageAccount.bicep` | Function host storage (no key outputs) |
+| `storageTable.bicep` | One table on an existing account |
+| `storageTableAssignRole.bicep` | Table Data Contributor (or other table role) |
 | `functionApp.bicep` | Linux Consumption Function (`dotnet-isolated` or `node`) + optional Application Insights |
 
 `loadTextContent` of a named spec stays in the **scenario** catalog file (`Scenarios/.../apis/<name>.bicep`).

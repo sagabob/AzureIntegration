@@ -41,5 +41,13 @@ public class EmailQueueParserTests
     {
         var parsed = EmailQueueParser.Parse("""{"to":"user+tag@example.com","subject":"s","body":"b"}""");
         Assert.Equal("user+tag@example.com", parsed.To);
+        Assert.Null(parsed.Id);
+    }
+
+    [Fact]
+    public void Parse_reads_request_id()
+    {
+        var parsed = EmailQueueParser.Parse("""{"id":" req-1 ","to":"a@b.com","subject":"s","body":"b"}""");
+        Assert.Equal("req-1", parsed.Id);
     }
 }

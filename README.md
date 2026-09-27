@@ -11,7 +11,7 @@ Treat this as **practice for a secure company**. Copy OIDC, lint → what-if →
 | [Landing zone](library/LandingZones/README.md) | Key Vault, Consumption APIM, Service Bus namespace, `entra-tenant-id` |
 | [Library](library/README.md) | Shared Bicep modules (no environment URLs, no swagger filenames) |
 | [GisIntegration](Scenarios/GisIntegration/README.md) | Product `gis` + Tdp GIS OpenAPI + `validate-jwt` on the shared APIM |
-| [TwilioIntegration](Scenarios/TwilioIntegration/README.md) | Product `twilio` + APIs `twilio-email` / `twilio-sms` + queues + Function `sendEmail` (Resend) / `sendSms` (empty) |
+| [TwilioIntegration](Scenarios/TwilioIntegration/README.md) | Product `twilio` + APIs + queues + table `twiliomessages` (payload + status) + Function `sendEmail` (Resend) / `sendSms` (empty) |
 
 ## Deploy order
 
@@ -33,8 +33,8 @@ Required reviewers on Environment **`demo`** so Apply waits until someone reads 
 Call the **landing-zone Gateway URL**, not the Function `*.azurewebsites.net`.
 
 ```text
-POST {gateway}/twilio-email/emails     → 400 if body/email shape is wrong, else queue → sendEmail (Resend)
-POST {gateway}/twilio-sms/messages     → queue → sendSms (handler empty)
+POST {gateway}/twilio-email/emails     → 400 if invalid; else table (queued) + queue → sendEmail (sent/failed)
+POST {gateway}/twilio-sms/messages     → table (queued) + queue → sendSms (handler empty)
 ```
 
 APIM email policy is [`library/policies/twilio-email-api.xml`](library/policies/twilio-email-api.xml). Infra apply compiles it with `loadTextContent` and PUTs `apis/twilio-email/policies/policy`. The Function zip-deploy does not update APIM.

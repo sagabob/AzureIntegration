@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace TwilioEmail;
 
-// APIM POST /twilio-email/emails body as queued by Service Bus: to, subject, body.
+// APIM POST /twilio-email/emails body as queued by Service Bus: id (request id), to, subject, body.
 internal static class EmailQueueParser
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -40,15 +40,17 @@ internal static class EmailQueueParser
             throw new InvalidOperationException("Queue message to must be a well-formed email address.");
         }
 
-        return new ValidatedEmailMessage(queued.To.Trim(), queued.Subject.Trim(), queued.Body);
+        var id = string.IsNullOrWhiteSpace(queued.Id) ? null : queued.Id.Trim();
+        return new ValidatedEmailMessage(queued.To.Trim(), queued.Subject.Trim(), queued.Body, id);
     }
 
     private sealed class EmailQueueMessage
     {
+        public string? Id { get; set; }
         public string? To { get; set; }
         public string? Subject { get; set; }
         public string? Body { get; set; }
     }
 }
 
-public sealed record ValidatedEmailMessage(string To, string Subject, string Body);
+public sealed record ValidatedEmailMessage(string To, string Subject, string Body, string? Id = null);

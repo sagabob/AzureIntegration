@@ -42,7 +42,25 @@
         },
         "responses": {
           "201": {
-            "description": "Message accepted by Service Bus"
+            "description": "201 only after the table row (status queued) and the Service Bus message both succeed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["status", "id"],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "queued"
+                    },
+                    "id": {
+                      "type": "string",
+                      "description": "APIM request id; table RowKey and queue body id"
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Missing to, subject, or body; or to is not a well-formed email address"

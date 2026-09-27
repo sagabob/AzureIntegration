@@ -49,10 +49,54 @@
                 </return-response>
             </when>
         </choose>
+        <set-variable name="messageId" value="@(context.RequestId.ToString())" />
+        <set-variable name="originalPayload" value="@(context.Request.Body.As&lt;string&gt;(preserveContent: true))" />
         <set-header name="Accept-Encoding" exists-action="override">
             <value>identity</value>
         </set-header>
-        <set-body>@(context.Request.Body.As&lt;string&gt;(preserveContent: true))</set-body>
+        <!-- Consumption send-request cannot use set-body inside the request (expected proxy).
+             Set the current body, then mode=copy. Insert table first so status exists before the queue. -->
+        <set-body>@{
+            return new JObject(
+                new JProperty("PartitionKey", "email"),
+                new JProperty("RowKey", (string)context.Variables["messageId"]),
+                new JProperty("Status", "queued"),
+                new JProperty("Payload", (string)context.Variables["originalPayload"])
+            ).ToString();
+        }</set-body>
+        <send-request mode="copy" response-variable-name="tableResponse" timeout="20" ignore-error="true">
+            <set-url>https://{{twilio-table-hostname}}/{{twilio-message-table}}</set-url>
+            <set-method>POST</set-method>
+            <set-header name="Content-Type" exists-action="override">
+                <value>application/json</value>
+            </set-header>
+            <set-header name="Accept" exists-action="override">
+                <value>application/json;odata=nometadata</value>
+            </set-header>
+            <set-header name="x-ms-version" exists-action="override">
+                <value>2020-10-02</value>
+            </set-header>
+            <set-header name="x-ms-date" exists-action="override">
+                <value>@(DateTime.UtcNow.ToString("R"))</value>
+            </set-header>
+            <authentication-managed-identity resource="https://storage.azure.com/" />
+        </send-request>
+        <choose>
+            <when condition="@(((IResponse)context.Variables[&quot;tableResponse&quot;]).StatusCode &lt; 200 || ((IResponse)context.Variables[&quot;tableResponse&quot;]).StatusCode &gt;= 300)">
+                <return-response>
+                    <set-status code="@(((IResponse)context.Variables[&quot;tableResponse&quot;]).StatusCode)" reason="Table error" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>@(((IResponse)context.Variables[&quot;tableResponse&quot;]).Body.As&lt;string&gt;())</set-body>
+                </return-response>
+            </when>
+        </choose>
+        <set-body>@{
+            var body = JObject.Parse((string)context.Variables["originalPayload"]);
+            body["id"] = (string)context.Variables["messageId"];
+            return body.ToString();
+        }</set-body>
         <send-request mode="copy" response-variable-name="sbResponse" timeout="30" ignore-error="true">
             <set-url>https://{{twilio-service-bus-hostname}}/{{twilio-email-queue}}/messages</set-url>
             <set-method>POST</set-method>
@@ -64,26 +108,62 @@
             </set-header>
             <authentication-managed-identity resource="https://servicebus.azure.net/" />
         </send-request>
+        <!-- 201 only when the table row and the Service Bus message both succeeded. -->
         <choose>
-            <when condition="@(((IResponse)context.Variables[&quot;sbResponse&quot;]).StatusCode &gt;= 200 &amp;&amp; ((IResponse)context.Variables[&quot;sbResponse&quot;]).StatusCode &lt; 300)">
+            <when condition="@{
+                var table = ((IResponse)context.Variables[&quot;tableResponse&quot;]).StatusCode;
+                var queued = ((IResponse)context.Variables[&quot;sbResponse&quot;]).StatusCode;
+                return table &gt;= 200 &amp;&amp; table &lt; 300 &amp;&amp; queued &gt;= 200 &amp;&amp; queued &lt; 300;
+            }">
                 <return-response>
                     <set-status code="201" reason="Created" />
                     <set-header name="Content-Type" exists-action="override">
                         <value>application/json</value>
                     </set-header>
-                    <set-body>{"status":"queued"}</set-body>
+                    <set-body>@{
+                        return new JObject(
+                            new JProperty("status", "queued"),
+                            new JProperty("id", (string)context.Variables["messageId"])
+                        ).ToString();
+                    }</set-body>
                 </return-response>
             </when>
-            <otherwise>
-                <return-response>
-                    <set-status code="@(((IResponse)context.Variables[&quot;sbResponse&quot;]).StatusCode)" reason="Service Bus error" />
-                    <set-header name="Content-Type" exists-action="override">
-                        <value>application/json</value>
-                    </set-header>
-                    <set-body>@(((IResponse)context.Variables[&quot;sbResponse&quot;]).Body.As&lt;string&gt;())</set-body>
-                </return-response>
-            </otherwise>
         </choose>
+        <!-- Queue failed after the row exists. MERGE Status only (keep Payload), then return the Service Bus error. -->
+        <set-variable name="sbErrorBody" value="@(((IResponse)context.Variables[&quot;sbResponse&quot;]).Body.As&lt;string&gt;())" />
+        <set-body>@{
+            return new JObject(new JProperty("Status", "queueFailed")).ToString();
+        }</set-body>
+        <send-request mode="copy" response-variable-name="tableMergeResponse" timeout="20" ignore-error="true">
+            <set-url>@{
+                var id = (string)context.Variables["messageId"];
+                return "https://{{twilio-table-hostname}}/{{twilio-message-table}}(PartitionKey='email',RowKey='" + id + "')";
+            }</set-url>
+            <set-method>MERGE</set-method>
+            <set-header name="Content-Type" exists-action="override">
+                <value>application/json</value>
+            </set-header>
+            <set-header name="Accept" exists-action="override">
+                <value>application/json;odata=nometadata</value>
+            </set-header>
+            <set-header name="If-Match" exists-action="override">
+                <value>*</value>
+            </set-header>
+            <set-header name="x-ms-version" exists-action="override">
+                <value>2020-10-02</value>
+            </set-header>
+            <set-header name="x-ms-date" exists-action="override">
+                <value>@(DateTime.UtcNow.ToString("R"))</value>
+            </set-header>
+            <authentication-managed-identity resource="https://storage.azure.com/" />
+        </send-request>
+        <return-response>
+            <set-status code="@(((IResponse)context.Variables[&quot;sbResponse&quot;]).StatusCode)" reason="Service Bus error" />
+            <set-header name="Content-Type" exists-action="override">
+                <value>application/json</value>
+            </set-header>
+            <set-body>@((string)context.Variables["sbErrorBody"])</set-body>
+        </return-response>
     </inbound>
     <backend>
         <base />

@@ -45,6 +45,9 @@ param apimProductName string = 'twilio'
 @description('APIM product display name.')
 param apimProductDisplayName string = 'Twilio'
 
+@description('Table for enqueue payload + status (queued, then sent/failed). Alphanumeric.')
+param messageTableName string = 'twiliomessages'
+
 var resolvedApimName = trim(replace(apimName, '\r', ''))
 var resolvedServiceBusNamespaceName = trim(replace(serviceBusNamespaceName, '\r', ''))
 var resolvedKeyVaultName = trim(replace(keyVaultName, '\r', ''))
@@ -68,6 +71,11 @@ var functionAppName = take(
 )
 
 var serviceBusHostname = '${resolvedServiceBusNamespaceName}.servicebus.windows.net'
+
+// Landing-zone APIM already has a system-assigned identity (Service Bus + this table).
+resource existingApim 'Microsoft.ApiManagement/service@2024-05-01' existing = {
+  name: resolvedApimName
+}
 
 module storage '../../library/modules/storageAccount.bicep' = {
   name: 'twilio-storage'
@@ -96,7 +104,38 @@ module functionApp '../../library/modules/functionApp.bicep' = {
       TWILIO_FROM_NUMBER: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Twilio-FromNumber)'
       EMAIL_SERVICE_API_KEY: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Email-Service-ApiKey)'
       EMAIL_FROM_ADDRESS: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Email-FromAddress)'
+      TABLE_SERVICE_URI: messageTable.outputs.tableServiceUri
+      MESSAGE_TABLE_NAME: messageTable.outputs.name
     }
+  }
+}
+
+// Demo: same account as Function host storage. At work, use a dedicated data account.
+module messageTable '../../library/modules/storageTable.bicep' = {
+  name: 'twilio-message-table'
+  params: {
+    storageAccountName: storage.outputs.name
+    tableName: messageTableName
+  }
+}
+
+module tableAssignApim '../../library/modules/storageTableAssignRole.bicep' = {
+  name: 'twilio-table-apim'
+  params: {
+    storageAccountName: storage.outputs.name
+    tableName: messageTable.outputs.name
+    principalId: existingApim.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+module tableAssignFunction '../../library/modules/storageTableAssignRole.bicep' = {
+  name: 'twilio-table-function'
+  params: {
+    storageAccountName: storage.outputs.name
+    tableName: messageTable.outputs.name
+    principalId: functionApp.outputs.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -186,11 +225,32 @@ module smsQueueNameValue '../../library/modules/apimNamedValue.bicep' = {
   }
 }
 
+module tableHostnameValue '../../library/modules/apimNamedValue.bicep' = {
+  name: 'twilio-nv-table-hostname'
+  params: {
+    apimName: resolvedApimName
+    namedValueName: 'twilio-table-hostname'
+    namedValue: '${storage.outputs.name}.table.${environment().suffixes.storage}'
+  }
+}
+
+module messageTableNameValue '../../library/modules/apimNamedValue.bicep' = {
+  name: 'twilio-nv-message-table'
+  params: {
+    apimName: resolvedApimName
+    namedValueName: 'twilio-message-table'
+    namedValue: messageTable.outputs.name
+  }
+}
+
 module twilioEmailApi './apis/twilio-email.bicep' = {
   name: 'twilio-email-api'
   dependsOn: [
     serviceBusHostnameValue
     emailQueueNameValue
+    tableHostnameValue
+    messageTableNameValue
+    tableAssignApim
   ]
   params: {
     apimName: resolvedApimName
@@ -204,6 +264,9 @@ module twilioSmsApi './apis/twilio-sms.bicep' = {
   dependsOn: [
     serviceBusHostnameValue
     smsQueueNameValue
+    tableHostnameValue
+    messageTableNameValue
+    tableAssignApim
   ]
   params: {
     apimName: resolvedApimName
@@ -222,3 +285,5 @@ output smsApiPathOut string = twilioSmsApi.outputs.apiPathOut
 output smsQueueNameOut string = smsQueue.outputs.name
 output functionAppNameOut string = functionApp.outputs.name
 output storageAccountNameOut string = storage.outputs.name
+output messageTableNameOut string = messageTable.outputs.name
+output tableServiceUriOut string = messageTable.outputs.tableServiceUri
