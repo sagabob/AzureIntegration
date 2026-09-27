@@ -9,7 +9,7 @@ param productName string
 param backendUrl string
 
 module api '../../../library/modules/apimOpenApi.bicep' = {
-  name: 'import'
+  name: 'twilio-sms-import'
   params: {
     apimName: apimName
     productName: productName
