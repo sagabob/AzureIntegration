@@ -18,7 +18,7 @@ param principalId string
 param principalType string = 'ServicePrincipal'
 
 @description('Built-in role GUID. Default is Storage Table Data Contributor.')
-param roleDefinitionId string = '0a9a7e1f-b9cd-4c3f-8d01-4ea46c06ed8f'
+param roleDefinitionId string = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
 
 resource storage 'Microsoft.Storage/storageAccounts@2025-01-01' existing = {
   name: storageAccountName
