@@ -14,7 +14,7 @@ public sealed class SendSms
 
     [Function("sendSms")]
     public void Run(
-        [ServiceBusTrigger("%TWILIO_SMS_QUEUE_NAME%", Connection = "ServiceBusConnection")] string _)
+        [ServiceBusTrigger("twilio-sms", Connection = "ServiceBusConnection")] string _)
     {
         _logger.LogInformation("sendSms received a queue message. Handler is empty; add send logic later.");
     }

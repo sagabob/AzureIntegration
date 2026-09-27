@@ -19,7 +19,7 @@ public sealed class SendEmail
 
     [Function("sendEmail")]
     public async Task Run(
-        [ServiceBusTrigger("%TWILIO_EMAIL_QUEUE_NAME%", Connection = "ServiceBusConnection")] string message)
+        [ServiceBusTrigger("twilio-email", Connection = "ServiceBusConnection")] string message)
     {
         var melbourne = MelbourneTime.Now();
         _logger.LogInformation(
