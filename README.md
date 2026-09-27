@@ -9,6 +9,6 @@ Shared **landing zone** (one APIM, one Key Vault, optional Service Bus) plus **s
 | [Landing zone](library/LandingZones/README.md) | Key Vault, Consumption APIM, Service Bus namespace, `entra-tenant-id` |
 | [Library](library/README.md) | Shared Bicep modules (no scenario names) |
 | [GisIntegration](Scenarios/GisIntegration/README.md) | Product `gis` + Tdp GIS OpenAPI on the shared APIM |
-| [TwilioIntegration](Scenarios/TwilioIntegration/README.md) | Product `twilio` + APIs `twilio-email` / `twilio-sms` + queues + Function `sendEmail` / `sendSms` (enqueue; handlers empty) |
+| [TwilioIntegration](Scenarios/TwilioIntegration/README.md) | Product `twilio` + APIs `twilio-email` / `twilio-sms` + queues + Function `sendEmail` (Resend) / `sendSms` (empty) |
 
 Deploy **LandingZone** first. Copy `apiManagementNameOut`, `serviceBusNamespaceNameOut`, and `keyVaultNameOut` to Environment variables `APIM_NAME`, `SERVICE_BUS_NAMESPACE`, and `KEY_VAULT_NAME`, then run a scenario workflow. Twilio Function source is a second workflow: after **Deploy TwilioIntegration Infrastructure**, set `FUNCTION_APP_NAME` from `functionAppNameOut` and run **Deploy TwilioIntegration Function**.

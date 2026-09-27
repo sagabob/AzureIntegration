@@ -8,7 +8,7 @@ Treat this as **practice for a secure company**. Copy the identity and secret pa
 Caller  POST  {gateway}/twilio-email/emails
           → APIM (product key + managed identity)
           → Service Bus queue  twilio-email
-          → Function sendEmail  (queue trigger; handler is empty)
+          → Function sendEmail  (queue trigger; sends via Resend)
 
 Caller  POST  {gateway}/twilio-sms/messages
           → APIM (product key + managed identity)
@@ -28,7 +28,7 @@ Use the **same gateway** as GIS (`apiManagementGatewayUrl` from Deploy LandingZo
 | APIM API `twilio-sms` | POST `/messages`. Spec: [`library/policies/twilio-sms.json`](../../library/policies/twilio-sms.json). Backend is Service Bus REST. Send logic later. |
 | Queue `twilio-email` | Function identity is Data Receiver on the queue and the namespace. |
 | Queue `twilio-sms` | Same receiver. Kept so SMS can be developed later. |
-| Storage + Linux Consumption Function | .NET 8 isolated worker (`TwilioEmail.csproj`). Triggers `sendEmail` and `sendSms`. Both handlers log and complete; no send yet. Application Insights is created with the Function. |
+| Storage + Linux Consumption Function | .NET 8 isolated worker (`TwilioEmail.csproj`). `sendEmail` sends through Resend (`https://api.resend.com/emails`). `sendSms` is still empty. Application Insights is created with the Function. |
 
 APIM is already Data Sender on the namespace (landing zone). Copy the `twilio-demo` subscription key from the portal (APIM → Subscriptions), not from deployment outputs.
 
@@ -64,7 +64,7 @@ Content-Type: application/json
 | Path | `/twilio-sms/messages` |
 | Body | `to` (E.164), `body` |
 
-Success from Service Bus through APIM is **201**. The Function then completes the message. Do not call the Function URL (no HTTP trigger; that is a 404).
+Success from Service Bus through APIM is **201**. `sendEmail` then calls Resend. A Resend error (bad key, unverified from-domain) retries and can dead-letter. Do not call the Function URL (no HTTP trigger; that is a 404).
 
 A previous SMS API on path `twilio` is updated in place to path `twilio-sms`. Call `/twilio-sms/messages`, not `/twilio/messages`.
 
@@ -85,7 +85,7 @@ Optional variable `AZURE_PIPELINE_OBJECT_ID` is the OIDC app object ID if `az ad
 
 `apimName` / `serviceBusNamespaceName` / `keyVaultName` in `main.bicepparam` are placeholders; Actions overrides them.
 
-Apply still writes these **Secrets** into the landing-zone vault (for when you add send logic). They are not used by the empty handlers:
+`sendEmail` reads `EMAIL_SERVICE_API_KEY` (Resend) and `EMAIL_FROM_ADDRESS` after Azure resolves the Key Vault references. The from address must be a domain you verified in Resend. Apply writes these into the landing-zone vault:
 
 | GitHub Secret | Key Vault name | Function setting |
 |---------------|----------------|------------------|
