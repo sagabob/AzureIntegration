@@ -47,7 +47,9 @@ Content-Type: application/json
 | Host | Landing-zone **Gateway URL** (not the Function `*.azurewebsites.net`) |
 | Path | `/twilio-email/emails` |
 | Key | Product subscription `twilio-demo` |
-| Body | `to`, `subject`, `body` |
+| Body | `to` (well-formed email), `subject`, `body` — all required, non-blank |
+| 400 | Missing fields, blank strings, or `to` is not `local@domain.tld` (shape only; not mailbox or MX) |
+| 201 | Service Bus accepted |
 
 ## Call SMS (enqueue only)
 
@@ -64,7 +66,7 @@ Content-Type: application/json
 | Path | `/twilio-sms/messages` |
 | Body | `to` (E.164), `body` |
 
-Success from Service Bus through APIM is **201**. `sendEmail` then calls Resend. A Resend error (bad key, unverified from-domain) retries and can dead-letter. Do not call the Function URL (no HTTP trigger; that is a 404).
+APIM returns **400** (and does not enqueue) if `to`, `subject`, or `body` is missing/blank, or if `to` is not a well-formed email. That check is format only — not mailbox existence or MX. Success from Service Bus is **201**. `sendEmail` then calls Resend and applies the same email-shape rule. A Resend error (bad key, unverified from-domain) retries and can dead-letter. Do not call the Function URL (no HTTP trigger; that is a 404).
 
 A previous SMS API on path `twilio` is updated in place to path `twilio-sms`. Call `/twilio-sms/messages`, not `/twilio/messages`.
 
@@ -106,9 +108,19 @@ Two workflows. Infra does not zip-deploy code.
 2. **lint** → **what-if** → **apply**. No skip-plan. Apply writes vault secrets and prints `functionAppNameOut`.
 3. Copy `functionAppNameOut` to Environment variable `FUNCTION_APP_NAME` (single line, no trailing Enter).
 4. **Actions → Deploy TwilioIntegration Function → Run workflow** ([`twiliointegration-function-deploy.yml`](../../.github/workflows/twiliointegration-function-deploy.yml))
-5. **build** → **zip-deploy** (`config-zip`) → restart. No ARM what-if.
+5. **build and test** → **zip-deploy** (`config-zip`) → restart. No ARM what-if. Tests do not call Azure or Resend.
 6. Required reviewers on Environment **`demo`** (company control) for both.
 
 Handler changes only need step 4. First time, or after the Function App name changes, run infra then the Function workflow.
+
+## Unit tests
+
+Parser, settings, `sendEmail` (mocked Resend), and the Resend HTTP payload. No Service Bus, Key Vault, or `api.resend.com`.
+
+```powershell
+dotnet test Scenarios/TwilioIntegration/function.tests/TwilioEmail.Tests.csproj
+```
+
+The Function deploy workflow runs the same `dotnet test` before zip-deploy.
 
 At work, add `validate-jwt` (Entra) on these APIs the same way GisIntegration does. This demo uses the product key only so you can exercise the queue path without a second app registration.

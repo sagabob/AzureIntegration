@@ -17,6 +17,8 @@ var host = new HostBuilder()
         {
             client.Timeout = TimeSpan.FromSeconds(30);
         });
+        // Resolved Key Vault values are already in the process environment.
+        services.AddSingleton(_ => ResendSettings.FromEnvironment());
         services.AddSingleton<IResendEmailSender, ResendEmailSender>();
     })
     .Build();

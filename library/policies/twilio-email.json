@@ -20,14 +20,19 @@
                 "properties": {
                   "to": {
                     "type": "string",
-                    "description": "Destination email address"
+                    "format": "email",
+                    "minLength": 3,
+                    "description": "Destination email address (shape only; APIM policy enforces a simple local@domain.tld check, not mailbox or MX)",
+                    "example": "someone@example.com"
                   },
                   "subject": {
                     "type": "string",
+                    "minLength": 1,
                     "description": "Email subject"
                   },
                   "body": {
                     "type": "string",
+                    "minLength": 1,
                     "description": "Email body"
                   }
                 }
@@ -38,6 +43,9 @@
         "responses": {
           "201": {
             "description": "Message accepted by Service Bus"
+          },
+          "400": {
+            "description": "Missing to, subject, or body; or to is not a well-formed email address"
           }
         }
       }

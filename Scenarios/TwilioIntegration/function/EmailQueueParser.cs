@@ -17,14 +17,27 @@ internal static class EmailQueueParser
             throw new InvalidOperationException("Queue message is empty.");
         }
 
-        var queued = JsonSerializer.Deserialize<EmailQueueMessage>(message, JsonOptions)
-            ?? throw new InvalidOperationException("Queue message is not valid email JSON.");
+        EmailQueueMessage queued;
+        try
+        {
+            queued = JsonSerializer.Deserialize<EmailQueueMessage>(message, JsonOptions)
+                ?? throw new InvalidOperationException("Queue message is not valid email JSON.");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException("Queue message is not valid email JSON.", ex);
+        }
 
         if (string.IsNullOrWhiteSpace(queued.To)
             || string.IsNullOrWhiteSpace(queued.Subject)
             || string.IsNullOrWhiteSpace(queued.Body))
         {
             throw new InvalidOperationException("Queue message must include to, subject, and body.");
+        }
+
+        if (!EmailAddressFormat.IsWellFormed(queued.To))
+        {
+            throw new InvalidOperationException("Queue message to must be a well-formed email address.");
         }
 
         return new ValidatedEmailMessage(queued.To.Trim(), queued.Subject.Trim(), queued.Body);

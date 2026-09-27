@@ -14,6 +14,7 @@ library/**/main.json
 *.parameters.json
 
 !Scenarios/**/function/host.json
+TestResults/
 node_modules/
 local.settings.json
 

@@ -8,11 +8,13 @@ namespace TwilioEmail;
 public sealed class SendEmail
 {
     private readonly IResendEmailSender _resend;
+    private readonly ResendSettings _settings;
     private readonly ILogger<SendEmail> _logger;
 
-    public SendEmail(IResendEmailSender resend, ILogger<SendEmail> logger)
+    public SendEmail(IResendEmailSender resend, ResendSettings settings, ILogger<SendEmail> logger)
     {
         _resend = resend;
+        _settings = settings;
         _logger = logger;
     }
 
@@ -35,7 +37,7 @@ public sealed class SendEmail
             queued.Subject,
             queued.Body);
 
-        var result = await _resend.SendAsync(queued, ResendSettings.FromEnvironment());
+        var result = await _resend.SendAsync(queued, _settings);
         // Throw so Service Bus retries and can dead-letter after max delivery.
         if (!result.Succeeded)
         {
