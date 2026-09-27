@@ -2,14 +2,15 @@ using System.Text.Json;
 
 namespace TwilioEmail;
 
-internal static class EmailSendValidator
+// APIM POST /twilio-email/emails body as queued by Service Bus: to, subject, body.
+internal static class EmailQueueParser
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
 
-    public static ValidatedEmailMessage ParseQueueMessage(string? message)
+    public static ValidatedEmailMessage Parse(string? message)
     {
         if (string.IsNullOrWhiteSpace(message))
         {
@@ -29,22 +30,6 @@ internal static class EmailSendValidator
         return new ValidatedEmailMessage(queued.To.Trim(), queued.Subject.Trim(), queued.Body);
     }
 
-    public static (string ApiKey, string FromAddress) RequireResendSettings()
-    {
-        var apiKey = Environment.GetEnvironmentVariable("EMAIL_SERVICE_API_KEY");
-        var from = Environment.GetEnvironmentVariable("EMAIL_FROM_ADDRESS");
-        if (string.IsNullOrWhiteSpace(apiKey)
-            || string.IsNullOrWhiteSpace(from)
-            || apiKey.StartsWith("@Microsoft.KeyVault", StringComparison.OrdinalIgnoreCase)
-            || from.StartsWith("@Microsoft.KeyVault", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                "EMAIL_SERVICE_API_KEY and EMAIL_FROM_ADDRESS must be resolved Key Vault values, not empty or @Microsoft.KeyVault references.");
-        }
-
-        return (apiKey, from.Trim());
-    }
-
     private sealed class EmailQueueMessage
     {
         public string? To { get; set; }
@@ -53,4 +38,4 @@ internal static class EmailSendValidator
     }
 }
 
-internal sealed record ValidatedEmailMessage(string To, string Subject, string Body);
+public sealed record ValidatedEmailMessage(string To, string Subject, string Body);

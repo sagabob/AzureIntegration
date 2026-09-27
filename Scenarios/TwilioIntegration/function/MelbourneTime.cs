@@ -1,5 +1,6 @@
 namespace TwilioEmail;
 
+// App Insights timestamps are UTC. Log text uses Melbourne so traces are readable locally.
 internal static class MelbourneTime
 {
     private static readonly TimeZoneInfo Zone = ResolveZone();

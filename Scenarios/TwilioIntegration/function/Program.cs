@@ -1,3 +1,5 @@
+// Isolated worker host. Do not AddHttpClient<SendEmail> — the worker constructs
+// the function class itself and that typed client never gets BaseAddress.
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -10,7 +12,23 @@ var host = new HostBuilder()
     {
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
-        // Isolated worker adds a filter that keeps only Warning+ in App Insights.
+        services.AllowApplicationInsightsInformationLogs();
+        services.AddHttpClient(ResendEmailSender.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddSingleton<IResendEmailSender, ResendEmailSender>();
+    })
+    .Build();
+
+host.Run();
+
+internal static class IsolatedWorkerLogging
+{
+    // Isolated worker adds a Warning+ filter for App Insights; remove it so
+    // sendEmail Information lines (payload, Resend request/response) appear.
+    public static void AllowApplicationInsightsInformationLogs(this IServiceCollection services)
+    {
         services.Configure<LoggerFilterOptions>(options =>
         {
             var appInsightsRule = options.Rules.FirstOrDefault(rule =>
@@ -21,11 +39,5 @@ var host = new HostBuilder()
                 options.Rules.Remove(appInsightsRule);
             }
         });
-        services.AddHttpClient("resend", client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(30);
-        });
-    })
-    .Build();
-
-host.Run();
+    }
+}

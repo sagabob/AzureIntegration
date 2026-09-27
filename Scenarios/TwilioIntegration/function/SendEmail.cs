@@ -1,25 +1,25 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
 namespace TwilioEmail;
 
+// Queue trigger only. Resend HTTP lives in IResendEmailSender so this class
+// is not an AddHttpClient<T> typed client.
 public sealed class SendEmail
 {
-    private readonly IHttpClientFactory _httpFactory;
+    private readonly IResendEmailSender _resend;
     private readonly ILogger<SendEmail> _logger;
 
-    public SendEmail(IHttpClientFactory httpFactory, ILogger<SendEmail> logger)
+    public SendEmail(IResendEmailSender resend, ILogger<SendEmail> logger)
     {
-        _httpFactory = httpFactory;
+        _resend = resend;
         _logger = logger;
     }
 
     [Function("sendEmail")]
     public async Task Run(
-        [ServiceBusTrigger("twilio-email", Connection = "ServiceBusConnection")] string message)
+        [ServiceBusTrigger(EmailQueues.Email, Connection = EmailQueues.ServiceBusConnection)]
+        string message)
     {
         var melbourne = MelbourneTime.Now();
         _logger.LogInformation(
@@ -27,7 +27,7 @@ public sealed class SendEmail
             melbourne,
             message);
 
-        var queued = EmailSendValidator.ParseQueueMessage(message);
+        var queued = EmailQueueParser.Parse(message);
         _logger.LogInformation(
             "sendEmail received at {MelbourneTime}. to={To} subject={Subject} body={Body}",
             melbourne,
@@ -35,44 +35,25 @@ public sealed class SendEmail
             queued.Subject,
             queued.Body);
 
-        var (apiKey, from) = EmailSendValidator.RequireResendSettings();
-
-        var payload = new
-        {
-            from,
-            to = new[] { queued.To },
-            subject = queued.Subject,
-            text = queued.Body
-        };
-        var resendRequest = JsonSerializer.Serialize(payload);
-        _logger.LogInformation(
-            "sendEmail calling Resend at {MelbourneTime}. request={ResendRequest}",
-            melbourne,
-            resendRequest);
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = JsonContent.Create(payload);
-
-        using var response = await _httpFactory.CreateClient("resend").SendAsync(request);
-        var resendBody = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
+        var result = await _resend.SendAsync(queued, ResendSettings.FromEnvironment());
+        // Throw so Service Bus retries and can dead-letter after max delivery.
+        if (!result.Succeeded)
         {
             _logger.LogError(
                 "Resend rejected email at {MelbourneTime} to {To} with {Status}. request={ResendRequest} response={ResendResponse}",
                 melbourne,
                 queued.To,
-                (int)response.StatusCode,
-                resendRequest,
-                resendBody);
-            throw new InvalidOperationException($"Resend returned {(int)response.StatusCode}: {resendBody}");
+                result.StatusCode,
+                result.RequestJson,
+                result.ResponseBody);
+            throw new InvalidOperationException($"Resend returned {result.StatusCode}: {result.ResponseBody}");
         }
 
         _logger.LogInformation(
             "Resend accepted email at {MelbourneTime} to {To}. request={ResendRequest} response={ResendResponse}",
             melbourne,
             queued.To,
-            resendRequest,
-            resendBody);
+            result.RequestJson,
+            result.ResponseBody);
     }
 }
