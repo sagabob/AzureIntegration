@@ -33,8 +33,8 @@ param tagProjectCode string = 'Twilio'
 @description('Extra tags merged with CostCentre / ProjectCode / environment.')
 param tags object = {}
 
-@description('Queue that receives SMS send requests.')
-param queueName string = 'twilio-sms'
+@description('Queue that receives email send requests.')
+param queueName string = 'twilio-email'
 
 @description('APIM product id (URL-safe). All Twilio APIs join this product.')
 param apimProductName string = 'twilio'
@@ -80,8 +80,9 @@ module functionApp '../../library/modules/functionApp.bicep' = {
     name: functionAppName
     tags: resourceTags
     storageAccountName: storage.outputs.name
+    workerRuntime: 'dotnet-isolated'
+    runtimeVersion: '8.0'
     extraAppSettings: {
-      AzureWebJobsFeatureFlags: 'EnableWorkerIndexing'
       TWILIO_QUEUE_NAME: queueName
       ServiceBusConnection__fullyQualifiedNamespace: serviceBusHostname
       ServiceBusConnection__credential: 'managedidentity'
@@ -93,7 +94,7 @@ module functionApp '../../library/modules/functionApp.bicep' = {
   }
 }
 
-module smsQueue '../../library/modules/serviceBusQueue.bicep' = {
+module emailQueue '../../library/modules/serviceBusQueue.bicep' = {
   name: 'twilio-queue'
   params: {
     namespaceName: resolvedServiceBusNamespaceName
@@ -155,13 +156,13 @@ module queueNameValue '../../library/modules/apimNamedValue.bicep' = {
   name: 'twilio-nv-queue'
   params: {
     apimName: resolvedApimName
-    namedValueName: 'twilio-sms-queue'
-    namedValue: smsQueue.outputs.name
+    namedValueName: 'twilio-email-queue'
+    namedValue: emailQueue.outputs.name
   }
 }
 
-module twilioSmsApi './apis/twilio-sms.bicep' = {
-  name: 'twilio-sms-api'
+module twilioEmailApi './apis/twilio-email.bicep' = {
+  name: 'twilio-email-api'
   dependsOn: [
     serviceBusHostnameValue
     queueNameValue
@@ -175,8 +176,8 @@ module twilioSmsApi './apis/twilio-sms.bicep' = {
 
 output apimNameOut string = resolvedApimName
 output productNameOut string = twilioProduct.outputs.productNameOut
-output apiNameOut string = twilioSmsApi.outputs.apiNameOut
-output apiPathOut string = twilioSmsApi.outputs.apiPathOut
-output queueNameOut string = smsQueue.outputs.name
+output apiNameOut string = twilioEmailApi.outputs.apiNameOut
+output apiPathOut string = twilioEmailApi.outputs.apiPathOut
+output queueNameOut string = emailQueue.outputs.name
 output functionAppNameOut string = functionApp.outputs.name
 output storageAccountNameOut string = storage.outputs.name

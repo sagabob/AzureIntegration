@@ -4,7 +4,7 @@ param namePrefix = 'twilio'
 param environmentName = 'demo'
 param tagCostCentre = 'DEMO'
 param tagProjectCode = 'Twilio'
-param queueName = 'twilio-sms'
+param queueName = 'twilio-email'
 param apimProductName = 'twilio'
 param apimProductDisplayName = 'Twilio'
 

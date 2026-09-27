@@ -4,7 +4,7 @@
 |------|------|
 | [`LandingZones/`](LandingZones/README.md) | Shared platform (`main.bicep`) |
 | [`modules/`](modules/) | Generic Bicep used by the landing zone and by every scenario |
-| [`policies/`](policies/) | Global APIM XML, plus the Twilio SMS spec/policy (loaded by the scenario catalog) |
+| [`policies/`](policies/) | Global APIM XML, plus the Twilio email spec/policy (loaded by the scenario catalog) |
 
 No environment URLs and no swagger filenames in `modules/`.
 
@@ -20,6 +20,6 @@ No environment URLs and no swagger filenames in `modules/`.
 | `serviceBusQueue.bicep` | One queue; optional Data Receiver |
 | `serviceBusAssignRole.bicep` | Data Receiver (or other role) on an existing namespace |
 | `storageAccount.bicep` | Function host storage (no key outputs) |
-| `functionApp.bicep` | Linux Consumption Function + system-assigned identity + optional Application Insights |
+| `functionApp.bicep` | Linux Consumption Function (`dotnet-isolated` or `node`) + optional Application Insights |
 
 `loadTextContent` of a named spec stays in the **scenario** catalog file (`Scenarios/.../apis/<name>.bicep`).

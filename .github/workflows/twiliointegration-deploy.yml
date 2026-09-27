@@ -32,6 +32,14 @@ jobs:
           az bicep install
           az bicep lint --file "$BICEP_FILE"
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build function
+        run: dotnet build "$FUNCTION_DIR/TwilioEmail.csproj" -c Release --nologo
+
   plan:
     name: What-if (plan)
     needs: lint
@@ -153,6 +161,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
       - name: Log in to Azure (OIDC)
         uses: azure/login@v2
         with:
@@ -242,10 +255,8 @@ jobs:
             exit 1
           fi
 
-          pushd "$FUNCTION_DIR"
-          npm ci --omit=dev
-          zip -r "$RUNNER_TEMP/twilio-function.zip" . -x "*.git*" -x "*local.settings.json"
-          popd
+          dotnet publish "$FUNCTION_DIR/TwilioEmail.csproj" -c Release -o "$RUNNER_TEMP/twilio-publish" --nologo
+          (cd "$RUNNER_TEMP/twilio-publish" && zip -r "$RUNNER_TEMP/twilio-function.zip" .)
 
           # Linux Consumption: do not set WEBSITE_RUN_FROM_PACKAGE=1 (Windows-only).
           # az functionapp deploy uploads the zip and sets the package URL.

@@ -14,8 +14,15 @@ param tags object = {}
 @description('Existing storage account name (host storage).')
 param storageAccountName string
 
-@description('Node major version for Linux Consumption.')
-param nodeVersion string = '24'
+@allowed([
+  'dotnet-isolated'
+  'node'
+])
+@description('Functions worker. Twilio uses dotnet-isolated.')
+param workerRuntime string = 'dotnet-isolated'
+
+@description('Runtime version. 8.0 for isolated .NET, 24 for Node.')
+param runtimeVersion string = '8.0'
 
 @description('App settings merged with host defaults. Do not put secret values here; use Key Vault references.')
 param extraAppSettings object = {}
@@ -41,6 +48,8 @@ resource plan 'Microsoft.Web/serverfarms@2024-11-01' = {
   }
 }
 
+var linuxFxVersion = workerRuntime == 'node' ? 'Node|${runtimeVersion}' : 'DOTNET-ISOLATED|${runtimeVersion}'
+
 resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
   name: name
   location: location
@@ -54,7 +63,7 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
     reserved: true
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'Node|${nodeVersion}'
+      linuxFxVersion: linuxFxVersion
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
     }
@@ -87,12 +96,15 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = if (enableAppl
   }
 }
 
-var hostSettings = {
+var nodeSettings = workerRuntime == 'node' ? {
+  WEBSITE_NODE_DEFAULT_VERSION: '~${runtimeVersion}'
+} : {}
+
+var hostSettings = union({
   AzureWebJobsStorage: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
   FUNCTIONS_EXTENSION_VERSION: '~4'
-  FUNCTIONS_WORKER_RUNTIME: 'node'
-  WEBSITE_NODE_DEFAULT_VERSION: '~${nodeVersion}'
-}
+  FUNCTIONS_WORKER_RUNTIME: workerRuntime
+}, nodeSettings)
 
 var insightsSettings = enableApplicationInsights ? {
   APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights!.properties.ConnectionString

@@ -14,8 +14,6 @@ library/**/main.json
 *.parameters.json
 
 !Scenarios/**/function/host.json
-!Scenarios/**/function/package.json
-!Scenarios/**/function/package-lock.json
 node_modules/
 local.settings.json
 

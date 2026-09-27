@@ -1,5 +1,0 @@
-.git*
-local.settings.json
-*.md
-test
-tests

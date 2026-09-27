@@ -1,30 +1,34 @@
 {
   "openapi": "3.0.1",
   "info": {
-    "title": "Twilio SMS",
+    "title": "Twilio Email",
     "version": "1.0",
-    "description": "Enqueue an SMS send request. APIM puts the body on the Service Bus queue."
+    "description": "Enqueue an email send request. APIM puts the body on the Service Bus queue."
   },
   "paths": {
-    "/messages": {
+    "/emails": {
       "post": {
-        "operationId": "enqueueSms",
-        "summary": "Queue an SMS",
+        "operationId": "enqueueEmail",
+        "summary": "Queue an email",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["to", "body"],
+                "required": ["to", "subject", "body"],
                 "properties": {
                   "to": {
                     "type": "string",
-                    "description": "E.164 destination, for example +61400000000"
+                    "description": "Destination email address"
+                  },
+                  "subject": {
+                    "type": "string",
+                    "description": "Email subject"
                   },
                   "body": {
                     "type": "string",
-                    "description": "SMS text"
+                    "description": "Email body"
                   }
                 }
               }
