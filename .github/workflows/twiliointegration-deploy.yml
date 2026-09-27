@@ -258,14 +258,13 @@ jobs:
           dotnet publish "$FUNCTION_DIR/TwilioEmail.csproj" -c Release -o "$RUNNER_TEMP/twilio-publish" --nologo
           (cd "$RUNNER_TEMP/twilio-publish" && zip -r "$RUNNER_TEMP/twilio-function.zip" .)
 
-          # Linux Consumption: do not set WEBSITE_RUN_FROM_PACKAGE=1 (Windows-only).
-          # az functionapp deploy uploads the zip and sets the package URL.
-          az functionapp deploy \
+          # Linux Consumption (Y1) does not support az functionapp deploy (OneDeploy).
+          # config-zip uses Kudu zipdeploy and sets WEBSITE_RUN_FROM_PACKAGE to a blob URL.
+          az functionapp deployment source config-zip \
             --resource-group "$RESOURCE_GROUP" \
             --name "$FUNC_NAME" \
-            --src-path "$RUNNER_TEMP/twilio-function.zip" \
-            --type zip \
-            --async false
+            --src "$RUNNER_TEMP/twilio-function.zip" \
+            --build-remote false
 
           az functionapp restart \
             --resource-group "$RESOURCE_GROUP" \
