@@ -55,6 +55,8 @@ jobs:
       TWILIO_API_KEY: ${{ secrets.TWILIO_API_KEY }}
       TWILIO_API_SECRET: ${{ secrets.TWILIO_API_SECRET }}
       TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+      EMAIL_SERVICE_API_KEY: ${{ secrets.EMAIL_SERVICE_API_KEY }}
+      EMAIL_FROM_ADDRESS: ${{ secrets.EMAIL_FROM_ADDRESS }}
     steps:
       - name: Check required variables
         run: |
@@ -74,7 +76,7 @@ jobs:
               echo "$name is set"
             fi
           done
-          for name in TWILIO_ACCOUNT_SID TWILIO_API_KEY TWILIO_API_SECRET TWILIO_FROM_NUMBER; do
+          for name in TWILIO_ACCOUNT_SID TWILIO_API_KEY TWILIO_API_SECRET TWILIO_FROM_NUMBER EMAIL_SERVICE_API_KEY EMAIL_FROM_ADDRESS; do
             if [ -z "${!name}" ]; then
               echo "::error::$name is not set. Add it as a Secret on the demo environment (not a variable)."
               missing=1
@@ -83,7 +85,7 @@ jobs:
             fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo "::error::Stop. Run Deploy LandingZone first, then set APIM_NAME, SERVICE_BUS_NAMESPACE, KEY_VAULT_NAME, and the Twilio secrets."
+            echo "::error::Stop. Run Deploy LandingZone first, then set APIM_NAME, SERVICE_BUS_NAMESPACE, KEY_VAULT_NAME, and the Twilio / email secrets."
             exit 1
           fi
 
@@ -141,6 +143,8 @@ jobs:
       TWILIO_API_KEY: ${{ secrets.TWILIO_API_KEY }}
       TWILIO_API_SECRET: ${{ secrets.TWILIO_API_SECRET }}
       TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+      EMAIL_SERVICE_API_KEY: ${{ secrets.EMAIL_SERVICE_API_KEY }}
+      EMAIL_FROM_ADDRESS: ${{ vars.EMAIL_FROM_ADDRESS }}
     steps:
       - name: Normalize identifiers
         run: |
@@ -191,10 +195,10 @@ jobs:
 
           echo "Copy functionAppNameOut to Environment variable FUNCTION_APP_NAME, then run Deploy TwilioIntegration Function."
 
-      - name: Write Twilio secrets to Key Vault
+      - name: Write secrets to Key Vault
         run: |
           missing=0
-          for name in TWILIO_ACCOUNT_SID TWILIO_API_KEY TWILIO_API_SECRET TWILIO_FROM_NUMBER KEY_VAULT_NAME; do
+          for name in TWILIO_ACCOUNT_SID TWILIO_API_KEY TWILIO_API_SECRET TWILIO_FROM_NUMBER EMAIL_SERVICE_API_KEY EMAIL_FROM_ADDRESS KEY_VAULT_NAME; do
             if [ -z "${!name}" ]; then
               echo "::error::$name is not set."
               missing=1
@@ -229,3 +233,5 @@ jobs:
           write_secret "Twilio-ApiKey" "$TWILIO_API_KEY"
           write_secret "Twilio-ApiSecret" "$TWILIO_API_SECRET"
           write_secret "Twilio-FromNumber" "$TWILIO_FROM_NUMBER"
+          write_secret "Email-Service-ApiKey" "$EMAIL_SERVICE_API_KEY"
+          write_secret "Email-FromAddress" "$EMAIL_FROM_ADDRESS"

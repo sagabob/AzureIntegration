@@ -94,6 +94,8 @@ module functionApp '../../library/modules/functionApp.bicep' = {
       TWILIO_API_KEY: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Twilio-ApiKey)'
       TWILIO_API_SECRET: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Twilio-ApiSecret)'
       TWILIO_FROM_NUMBER: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Twilio-FromNumber)'
+      EMAIL_SERVICE_API_KEY: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Email-Service-ApiKey)'
+      EMAIL_FROM_ADDRESS: '@Microsoft.KeyVault(VaultName=${resolvedKeyVaultName};SecretName=Email-FromAddress)'
     }
   }
 }

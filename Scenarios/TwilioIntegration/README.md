@@ -92,6 +92,8 @@ Apply still writes these **Secrets** into the landing-zone vault (for when you a
 | `TWILIO_API_KEY` | `Twilio-ApiKey` | `TWILIO_API_KEY` |
 | `TWILIO_API_SECRET` | `Twilio-ApiSecret` | `TWILIO_API_SECRET` |
 | `TWILIO_FROM_NUMBER` | `Twilio-FromNumber` | `TWILIO_FROM_NUMBER` |
+| `EMAIL_SERVICE_API_KEY` | `Email-Service-ApiKey` | `EMAIL_SERVICE_API_KEY` |
+| `EMAIL_FROM_ADDRESS` | `Email-FromAddress` | `EMAIL_FROM_ADDRESS` |
 
 Do not put those values in Bicep, GitHub variables, or the workflow file. The Function settings are Key Vault references. The pipeline is Key Vault Secrets Officer so CI can write them. The Function identity is Secrets User (read only).
 
