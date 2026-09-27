@@ -15,7 +15,7 @@
         </set-header>
     </inbound>
     <backend>
-        <base />
+        <forward-request buffer-request-content="true" />
     </backend>
     <outbound>
         <base />

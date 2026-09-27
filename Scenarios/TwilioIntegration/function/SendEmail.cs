@@ -21,8 +21,13 @@ public sealed class SendEmail
     public async Task Run(
         [ServiceBusTrigger("%TWILIO_EMAIL_QUEUE_NAME%", Connection = "ServiceBusConnection")] string message)
     {
-        var queued = EmailSendValidator.ParseQueueMessage(message);
         var melbourne = MelbourneTime.Now();
+        _logger.LogInformation(
+            "sendEmail queue payload at {MelbourneTime}. raw={RawMessage}",
+            melbourne,
+            message);
+
+        var queued = EmailSendValidator.ParseQueueMessage(message);
         _logger.LogInformation(
             "sendEmail received at {MelbourneTime}. to={To} subject={Subject} body={Body}",
             melbourne,

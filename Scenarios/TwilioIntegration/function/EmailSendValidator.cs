@@ -33,9 +33,13 @@ internal static class EmailSendValidator
     {
         var apiKey = Environment.GetEnvironmentVariable("EMAIL_SERVICE_API_KEY");
         var from = Environment.GetEnvironmentVariable("EMAIL_FROM_ADDRESS");
-        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(from))
+        if (string.IsNullOrWhiteSpace(apiKey)
+            || string.IsNullOrWhiteSpace(from)
+            || apiKey.StartsWith("@Microsoft.KeyVault", StringComparison.OrdinalIgnoreCase)
+            || from.StartsWith("@Microsoft.KeyVault", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("EMAIL_SERVICE_API_KEY and EMAIL_FROM_ADDRESS must be set.");
+            throw new InvalidOperationException(
+                "EMAIL_SERVICE_API_KEY and EMAIL_FROM_ADDRESS must be resolved Key Vault values, not empty or @Microsoft.KeyVault references.");
         }
 
         return (apiKey, from.Trim());
