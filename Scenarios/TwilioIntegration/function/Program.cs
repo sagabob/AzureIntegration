@@ -21,9 +21,8 @@ var host = new HostBuilder()
                 options.Rules.Remove(appInsightsRule);
             }
         });
-        services.AddHttpClient<SendEmail>(client =>
+        services.AddHttpClient("resend", client =>
         {
-            client.BaseAddress = new Uri("https://api.resend.com/");
             client.Timeout = TimeSpan.FromSeconds(30);
         });
     })

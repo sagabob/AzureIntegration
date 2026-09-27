@@ -8,12 +8,12 @@ namespace TwilioEmail;
 
 public sealed class SendEmail
 {
-    private readonly HttpClient _http;
+    private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<SendEmail> _logger;
 
-    public SendEmail(HttpClient http, ILogger<SendEmail> logger)
+    public SendEmail(IHttpClientFactory httpFactory, ILogger<SendEmail> logger)
     {
-        _http = http;
+        _httpFactory = httpFactory;
         _logger = logger;
     }
 
@@ -50,11 +50,11 @@ public sealed class SendEmail
             melbourne,
             resendRequest);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         request.Content = JsonContent.Create(payload);
 
-        using var response = await _http.SendAsync(request);
+        using var response = await _httpFactory.CreateClient("resend").SendAsync(request);
         var resendBody = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
         {
