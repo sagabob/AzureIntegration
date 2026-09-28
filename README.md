@@ -2,7 +2,7 @@
 
 Shared **landing zone** (one APIM, one Key Vault, one Service Bus namespace) plus **scenarios** that add products, APIs, and queues on that platform. Scenarios do not create another gateway.
 
-Treat this as **practice for a secure company**. Copy OIDC, lint → what-if → apply, Key Vault references, and Entra groups. Do not copy the demo public-network shortcuts into production.
+Treat this as **practice for a secure company**. Copy OIDC, lint → what-if → apply, Key Vault references, and Entra groups.
 
 **GitHub → Azure:** [Connect GitHub Actions to Azure (OIDC)](docs/github-azure-oidc.md). No `AZURE_CLIENT_SECRET`. Deploy from Actions only.
 
@@ -49,6 +49,18 @@ dotnet test Scenarios/TwilioIntegration/function.tests/TwilioEmail.Tests.csproj
 
 Tests do not call Azure or Resend. Details: [TwilioIntegration README](Scenarios/TwilioIntegration/README.md).
 
-## Demo-only (do not copy to work)
+## Consumption APIM workarounds
 
-Vault `publicNetworkAccess: Enabled`, purge protection off, no delete lock, officer group optional. Consumption APIM cannot use VNet. At a company: private vault, purge protection, required officer **group**, Environment reviewers + branch protection.
+The landing-zone gateway is **Consumption**. Several features other SKUs allow are missing or rejected, so Twilio policy and a few Bicep settings are shaped around that.
+
+| Limitation | What we do |
+|------------|------------|
+| `send-request` cannot contain `set-body` (`expected proxy`) | Set the body on the inbound request, then `<send-request mode="copy">` (table insert, Service Bus, table MERGE). |
+| No `buffer-request-content` | Read the body with `As<…>(preserveContent: true)` and reuse variables (`originalPayload`, `messageId`). |
+| Default `forward-request` would return the backend status (often 200) | After a successful enqueue, `<return-response>` **201** with `{"status":"queued","id":"…"}`. |
+| Consumption cannot join a VNet | Vault stays public so APIM can resolve Key Vault named values. Not a company default. |
+| Consumption rejects some TLS `customProperties` (SSL3 / 3DES even when `False`) | `apiManagement.bicep` only disables TLS 1.0/1.1 on this SKU. |
+
+Related (Linux **Consumption Function** Y1, not APIM): `az functionapp deploy` (OneDeploy) is unavailable — zip uses `config-zip`. The scale controller needs Service Bus Data Receiver on the **namespace**, not only the queue.
+
+Developer / Standard / VNet APIM would not need the `mode=copy` body trick. Keep the comments in [`twilio-email-api.xml`](library/policies/twilio-email-api.xml) if you change SKU.
