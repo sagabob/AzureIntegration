@@ -43,6 +43,17 @@ public sealed class SendEmail
             queued.Subject,
             queued.Body);
 
+        var row = await _status.EnsureQueuedAsync(MessageStatuses.EmailPartition, queued.Id, message);
+        if (row?.AlreadySent == true)
+        {
+            _logger.LogInformation(
+                "sendEmail skip Resend at {MelbourneTime} id={Id} providerId={ProviderMessageId}; already sent.",
+                melbourne,
+                queued.Id,
+                row.ProviderMessageId);
+            return;
+        }
+
         var result = await _resend.SendAsync(queued, _settings);
         // Throw so Service Bus retries and can dead-letter after max delivery.
         if (!result.Succeeded)
@@ -58,12 +69,17 @@ public sealed class SendEmail
             throw new InvalidOperationException($"Resend returned {result.StatusCode}: {result.ResponseBody}");
         }
 
-        await _status.SetStatusAsync(MessageStatuses.EmailPartition, queued.Id, MessageStatuses.Sent);
+        await _status.SetStatusAsync(
+            MessageStatuses.EmailPartition,
+            queued.Id,
+            MessageStatuses.Sent,
+            result.ProviderMessageId);
         _logger.LogInformation(
-            "Resend accepted email at {MelbourneTime} to {To} id={Id}. request={ResendRequest} response={ResendResponse}",
+            "Resend accepted email at {MelbourneTime} to {To} id={Id} providerId={ProviderMessageId}. request={ResendRequest} response={ResendResponse}",
             melbourne,
             queued.To,
             queued.Id,
+            result.ProviderMessageId,
             result.RequestJson,
             result.ResponseBody);
     }

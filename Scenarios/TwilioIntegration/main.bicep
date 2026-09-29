@@ -45,7 +45,7 @@ param apimProductName string = 'twilio'
 @description('APIM product display name.')
 param apimProductDisplayName string = 'Twilio'
 
-@description('Table for enqueue payload + status (queued, then sent/failed). Alphanumeric.')
+@description('Table for payload + status. Email: Function writes queued then sent/failed. SMS APIM still inserts queued. Alphanumeric.')
 param messageTableName string = 'twiliomessages'
 
 var resolvedApimName = trim(replace(apimName, '\r', ''))
@@ -248,9 +248,6 @@ module twilioEmailApi './apis/twilio-email.bicep' = {
   dependsOn: [
     serviceBusHostnameValue
     emailQueueNameValue
-    tableHostnameValue
-    messageTableNameValue
-    tableAssignApim
   ]
   params: {
     apimName: resolvedApimName

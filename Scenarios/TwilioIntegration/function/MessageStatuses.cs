@@ -1,6 +1,6 @@
 namespace TwilioEmail;
 
-// Keep literals in sync with library/policies/twilio-email-api.xml and twilio-sms-api.xml.
+// Keep literals in sync with sendEmail and library/policies/twilio-sms-api.xml.
 internal static class MessageStatuses
 {
     public const string Queued = "queued";

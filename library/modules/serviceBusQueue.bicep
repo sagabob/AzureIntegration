@@ -26,6 +26,7 @@ resource queue 'Microsoft.ServiceBus/namespaces/queues@2026-01-01' = {
   parent: namespace
   name: queueName
   properties: {
+    // Failed peek-lock deliveries retry up to maxDeliveryCount, then dead-letter.
     deadLetteringOnMessageExpiration: true
     maxDeliveryCount: 10
   }

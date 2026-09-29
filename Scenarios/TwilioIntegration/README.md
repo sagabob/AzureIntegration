@@ -7,15 +7,43 @@ Treat this as **practice for a secure company**. Copy the identity and secret pa
 ```text
 Caller  POST  {gateway}/twilio-email/emails
           → APIM (product key + managed identity)
-          → table twiliomessages (status=queued, RowKey=request id)
           → Service Bus queue  twilio-email
-          → Function sendEmail  (updates status to sent or failed; Resend)
+          → 201 { status: queued, id }
+          → Function sendEmail
+               → table twiliomessages (queued, payload, RowKey=id)
+               → Resend
+               → MERGE sent + ProviderMessageId  (or failed, then throw)
 
 Caller  POST  {gateway}/twilio-sms/messages
           → APIM (product key + managed identity)
+          → table twiliomessages (status=queued, RowKey=request id)
           → Service Bus queue  twilio-sms
           → Function sendSms  (queue trigger; handler is empty — add send later)
 ```
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant APIM
+    participant Queue as twilio-email
+    participant Fn as sendEmail
+    participant Table as twiliomessages
+    participant Resend
+    Caller->>APIM: POST /emails
+    APIM->>APIM: validate to, subject, body
+    APIM->>Queue: POST message (id, to, subject, body)
+    APIM-->>Caller: 201 queued
+    Queue->>Fn: trigger
+    Fn->>Table: upsert queued + payload
+    alt already sent
+        Fn-->>Queue: complete (skip Resend)
+    else send
+        Fn->>Resend: POST /emails
+        Fn->>Table: MERGE sent + ProviderMessageId
+    end
+```
+
+A Function crash or Resend error **throws**. Service Bus redelivers (up to `maxDeliveryCount` 10), then the message lands on the **DLQ**. Resubmit from the DLQ after you fix the cause. If the row is already `sent` or has `ProviderMessageId`, `sendEmail` does not call Resend again.
 
 Use the **same gateway** as GIS (`apiManagementGatewayUrl` from Deploy LandingZone, or Portal → APIM → Overview → Gateway URL). Twilio does not get a second APIM. The two APIs use different path prefixes (`twilio-email` and `twilio-sms`) because APIM will not let two HTTP APIs share path `twilio`.
 
@@ -25,7 +53,7 @@ Use the **same gateway** as GIS (`apiManagementGatewayUrl` from Deploy LandingZo
 |----------|---------|
 | APIM product `twilio` | One **product**; one **subscription** per caller (`twilio-demo`, `allowTracing: false`) |
 | Named values | `twilio-service-bus-hostname`, `twilio-email-queue`, `twilio-sms-queue`, `twilio-table-hostname`, `twilio-message-table` (not secrets) |
-| Table `twiliomessages` | Payload + `Status`. APIM inserts `queued` (RowKey = APIM request id). Queue failure MERGEs `queueFailed`. Function merges `sent` / `failed`. APIM and Function identities are Table Data Contributor. |
+| Table `twiliomessages` | Payload + `Status` + optional `ProviderMessageId`. **Email:** Function upserts `queued`, then MERGEs `sent` / `failed`. **SMS:** APIM still inserts `queued`; queue failure MERGEs `queueFailed`. Function identity is Table Data Contributor. APIM still has the same role for SMS. |
 | APIM API `twilio-email` | POST `/emails`. Spec: [`library/policies/twilio-email.json`](../../library/policies/twilio-email.json). Backend is Service Bus REST. |
 | APIM API `twilio-sms` | POST `/messages`. Spec: [`library/policies/twilio-sms.json`](../../library/policies/twilio-sms.json). Backend is Service Bus REST. Send logic later. |
 | Queue `twilio-email` | Function identity is Data Receiver on the queue and the namespace. |
@@ -51,7 +79,7 @@ Content-Type: application/json
 | Key | Product subscription `twilio-demo` |
 | Body | `to` (well-formed email), `subject`, `body` — all required, non-blank |
 | 400 | Missing fields, blank strings, or `to` is not `local@domain.tld` (shape only; not mailbox or MX) |
-| 201 | Both succeeded: table row **and** queue. `{"status":"queued","id":"<APIM request id>"}` |
+| 201 | Service Bus accepted the message. `{"status":"queued","id":"<APIM request id>"}`. Table row is written by `sendEmail`, not APIM. |
 
 ## Call SMS (enqueue only)
 
@@ -68,7 +96,9 @@ Content-Type: application/json
 | Path | `/twilio-sms/messages` |
 | Body | `to` (E.164), `body` |
 
-APIM returns **400** (and does not enqueue) if `to`, `subject`, or `body` is missing/blank, or if `to` is not a well-formed email. That check is format only — not mailbox existence or MX. APIM writes the payload to table `twiliomessages` (`Status=queued`, `RowKey` = request id), then the queue (body includes `id`). **201** only if both succeed. Table failure does not enqueue. Queue failure MERGEs the row to `queueFailed` and returns the Service Bus status (not 201). `sendEmail` calls Resend and merges `sent` or `failed` on the same row. A Resend error retries and can dead-letter. Do not call the Function URL (no HTTP trigger; that is a 404).
+APIM returns **400** (and does not enqueue) if `to`, `subject`, or `body` is missing/blank, or if `to` is not a well-formed email. That check is format only — not mailbox existence or MX. APIM then POSTs to Service Bus (body includes `id`). **201** means the queue accepted the message — not that the table row exists or Resend ran. Queue failure returns the Service Bus status (no table row). `sendEmail` upserts `queued` + payload, calls Resend, and MERGEs `sent` (and Resend `id` as `ProviderMessageId`) or `failed`. A Resend error throws so Service Bus retries and can dead-letter. Do not call the Function URL (no HTTP trigger; that is a 404).
+
+SMS is unchanged: APIM still writes the table then the queue. **201** for SMS still means both succeeded.
 
 Portal: storage account from `storageAccountNameOut` → **Storage browser** → **Tables** → `twiliomessages`. PartitionKey `email` or `sms`.
 
@@ -119,7 +149,7 @@ Handler changes only need step 4. First time, or after the Function App name cha
 
 ## Unit tests
 
-Parser, settings, `sendEmail` (mocked Resend), and the Resend HTTP payload. No Service Bus, Key Vault, or `api.resend.com`.
+Parser, settings, `sendEmail` (mocked Resend and table store), and the Resend HTTP payload. No Service Bus, Key Vault, or `api.resend.com`.
 
 ```powershell
 dotnet test Scenarios/TwilioIntegration/function.tests/TwilioEmail.Tests.csproj

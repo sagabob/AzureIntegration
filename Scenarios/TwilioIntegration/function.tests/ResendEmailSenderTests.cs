@@ -26,6 +26,7 @@ public class ResendEmailSenderTests
 
         Assert.True(result.Succeeded);
         Assert.Equal(200, result.StatusCode);
+        Assert.Equal("re_1", result.ProviderMessageId);
         Assert.Contains("re_1", result.ResponseBody);
         Assert.Equal(HttpMethod.Post, captured!.Method);
         Assert.Equal(ResendEmailSender.EmailsUrl, captured.RequestUri!.ToString());

@@ -19,6 +19,13 @@ public class SendEmailTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ResendSendResult(200, "{}", """{"id":"re_1"}"""));
         var status = new Mock<IMessageStatusStore>();
+        status
+            .Setup(s => s.EnsureQueuedAsync(
+                MessageStatuses.EmailPartition,
+                "req-1",
+                ValidQueueJson,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageTableRow(MessageStatuses.Queued, null, ValidQueueJson));
 
         var fn = new SendEmail(resend.Object, status.Object, Settings, NullLogger<SendEmail>.Instance);
 
@@ -28,7 +35,33 @@ public class SendEmailTests
             MessageStatuses.EmailPartition,
             "req-1",
             MessageStatuses.Sent,
+            "re_1",
             It.IsAny<CancellationToken>()));
+    }
+
+    [Fact]
+    public async Task Run_skips_Resend_when_table_already_sent()
+    {
+        var resend = new Mock<IResendEmailSender>(MockBehavior.Strict);
+        var status = new Mock<IMessageStatusStore>();
+        status
+            .Setup(s => s.EnsureQueuedAsync(
+                MessageStatuses.EmailPartition,
+                "req-1",
+                ValidQueueJson,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageTableRow(MessageStatuses.Sent, "re_existing", ValidQueueJson));
+
+        var fn = new SendEmail(resend.Object, status.Object, Settings, NullLogger<SendEmail>.Instance);
+
+        await fn.Run(ValidQueueJson);
+        resend.VerifyNoOtherCalls();
+        status.Verify(s => s.SetStatusAsync(
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -42,6 +75,13 @@ public class SendEmailTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ResendSendResult(422, "{}", "invalid"));
         var status = new Mock<IMessageStatusStore>();
+        status
+            .Setup(s => s.EnsureQueuedAsync(
+                MessageStatuses.EmailPartition,
+                "req-1",
+                ValidQueueJson,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageTableRow(MessageStatuses.Queued, null, ValidQueueJson));
 
         var fn = new SendEmail(resend.Object, status.Object, Settings, NullLogger<SendEmail>.Instance);
 
@@ -51,6 +91,7 @@ public class SendEmailTests
             MessageStatuses.EmailPartition,
             "req-1",
             MessageStatuses.Failed,
+            null,
             It.IsAny<CancellationToken>()));
     }
 

@@ -55,9 +55,9 @@ The landing-zone gateway is **Consumption**. Several features other SKUs allow a
 
 | Limitation | What we do |
 |------------|------------|
-| `send-request` cannot contain `set-body` (`expected proxy`) | Set the body on the inbound request, then `<send-request mode="copy">` (table insert, Service Bus, table MERGE). |
+| `send-request` cannot contain `set-body` (`expected proxy`) | Set the body on the inbound request, then `<send-request mode="copy">` (email queue; SMS table insert / MERGE). |
 | No `buffer-request-content` | Read the body with `As<…>(preserveContent: true)` and reuse variables (`originalPayload`, `messageId`). |
-| Default `forward-request` would return the backend status (often 200) | After a successful enqueue, `<return-response>` **201** with `{"status":"queued","id":"…"}`. |
+| Default `forward-request` would return the backend status (often 200) | After Service Bus accepts the message, `<return-response>` **201** with `{"status":"queued","id":"…"}`. |
 | Consumption cannot join a VNet | Vault stays public so APIM can resolve Key Vault named values. Not a company default. |
 | Consumption rejects some TLS `customProperties` (SSL3 / 3DES even when `False`) | `apiManagement.bicep` only disables TLS 1.0/1.1 on this SKU. |
 

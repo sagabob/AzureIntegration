@@ -42,7 +42,7 @@
         },
         "responses": {
           "201": {
-            "description": "201 only after the table row (status queued) and the Service Bus message both succeed",
+            "description": "201 after Service Bus accepted the message. The Function writes the table row and sends the email.",
             "content": {
               "application/json": {
                 "schema": {
@@ -55,7 +55,7 @@
                     },
                     "id": {
                       "type": "string",
-                      "description": "APIM request id; table RowKey and queue body id"
+                      "description": "APIM request id; queue body id and later table RowKey"
                     }
                   }
                 }
